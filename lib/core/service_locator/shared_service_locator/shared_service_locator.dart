@@ -1,0 +1,117 @@
+import 'dart:developer';
+
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:get_it/get_it.dart';
+import 'package:pretty_dio_logger/pretty_dio_logger.dart';
+import 'package:lavanderia_delivery/core/helpers/generic_data_source.dart';
+import 'package:lavanderia_delivery/core/helpers/location_service.dart';
+import 'package:lavanderia_delivery/core/http/api_consumer.dart';
+import 'package:lavanderia_delivery/core/http/auth_interceptor.dart';
+import 'package:lavanderia_delivery/core/http/endpoints.dart';
+import 'package:lavanderia_delivery/core/http/token_refresh_service.dart';
+import 'package:lavanderia_delivery/core/service_locator/auth_sevices_locator/login_services_locator.dart';
+import 'package:lavanderia_delivery/core/service_locator/auth_sevices_locator/logout_services_locator.dart';
+import 'package:lavanderia_delivery/core/service_locator/auth_sevices_locator/otp_services_locator.dart';
+import 'package:lavanderia_delivery/core/service_locator/auth_sevices_locator/register_services_locator.dart';
+
+class SharedServiceLocator {
+  static Future<void> execute({required GetIt getIt}) async {
+    getIt.registerLazySingleton<TokenRefreshService>(
+      () => TokenRefreshService(),
+    );
+
+    getIt.registerLazySingleton<Dio>(() {
+      final dio = Dio(_baseOptions());
+
+      // Dio تاني بنفس الإعدادات من غير الانترسبتور، الانترسبتور بيعيد بيه
+      // الطلب بعد التجديد عشان مايحصلش deadlock في الطابور بتاعه
+      final retryDio = Dio(_baseOptions());
+      _addLogger(retryDio);
+
+      // الـ Authorization بقى بيتحط في الانترسبتور وقت كل ريكوست،
+      // مش هنا وقت التسجيل، عشان ياخد أحدث توكن بعد اللوجين أو التجديد.
+      dio.interceptors.add(
+        AuthInterceptor(
+          retryDio: retryDio,
+          refreshService: getIt<TokenRefreshService>(),
+        ),
+      );
+      _addLogger(dio);
+
+      return dio;
+    });
+    getIt.registerLazySingleton<ApiConsumer>(
+      () => BaseApiConsumer(dio: getIt<Dio>()),
+    );
+
+    // كل الداتا سورس بتاخده في الكونستراكتور فلازم يكون متسجل قبلهم
+    getIt.registerLazySingleton<GenericDataSource>(
+      () => GenericDataSource(getIt<ApiConsumer>()),
+    );
+
+    await RegisterServicesLocator.init(getIt: getIt);
+    await OtpServicesLocator.init(getIt: getIt);
+    await LoginServicesLocator.init(getIt: getIt);
+    await LogoutServicesLocator.init(getIt: getIt);
+
+    getIt.registerLazySingleton<LocationService>(() => LocationService());
+
+    // فأي شاشة تانية (زي تأكيد الطلب) تقرا نفس العنوان منغير ما تجيبه تاني
+    // getIt.registerLazySingleton<LocationController>(
+    //   () => LocationController(service: getIt<LocationService>()),
+    // );
+
+    // السلة singleton عشان تفضل عايشة بعد ما تخرج من شاشة تفاصيل المغسلة
+    // فتاب السلة في البوتوم ناف يقرا من نفس الحاجات اللي اتضافت
+    // getIt.registerLazySingleton<SelectedServicesController>(
+    //   () => SelectedServicesController(),
+    // );
+
+    // getIt.registerLazySingleton<PusherConsumer>(() => PusherConsumerImpl(appKey: "69d83bf354bcf8c0a712",cluster:"mt1" ));
+    // getIt.registerLazySingleton<LocalNotificationConsumer>(() => LocalNotificationServiceImpl()..initialize());
+    // getIt.registerLazySingleton<FirebaseService>(() => FirebaseService(getIt()));
+    // getIt<FirebaseService>().initializeFirebaseMessaging();
+  }
+
+  static BaseOptions _baseOptions() {
+    return BaseOptions(
+      baseUrl: Endpoints.baseUrl,
+      connectTimeout: const Duration(seconds: 60),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        // Disable gzip/deflate from server to avoid malformed compressed responses
+        'Accept-Encoding': 'identity',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Accept-Language': 'ar',
+        //  AppRouter.router.configuration.navigatorKey
+        //             .currentContext?.isArabic ??
+        //         false
+        //     ? 'ar'
+        //     : 'en',
+      },
+    );
+  }
+
+  static void _addLogger(Dio dio) {
+    if (!kDebugMode) return;
+    dio.interceptors.add(
+      PrettyDioLogger(
+        logPrint: (object) {
+          log(object.toString());
+        },
+        requestHeader: true,
+        requestBody: true,
+        responseBody: true,
+        responseHeader: false,
+        error: true,
+        compact: true,
+        enabled: true,
+        request: true,
+        maxWidth: 90,
+      ),
+    );
+  }
+}
