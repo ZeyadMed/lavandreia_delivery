@@ -2,21 +2,21 @@
 class Assets {
   Assets._();
   
-  /// Assets for assetsFontsSfArabicBlack
-  /// assets/fonts/sf-arabic-black.ttf
-  static const String assetsFontsSfArabicBlack = "assets/fonts/sf-arabic-black.ttf";
-
   /// Assets for assetsFontsSFArabicRegular
   /// assets/fonts/SFArabic-Regular.ttf
   static const String assetsFontsSFArabicRegular = "assets/fonts/SFArabic-Regular.ttf";
+
+  /// Assets for assetsFontsSFArabicRoundedRegular
+  /// assets/fonts/SFArabicRounded-Regular.ttf
+  static const String assetsFontsSFArabicRoundedRegular = "assets/fonts/SFArabicRounded-Regular.ttf";
 
   /// Assets for assetsFontsSFArabicSemiBold
   /// assets/fonts/SF-Arabic-SemiBold.ttf
   static const String assetsFontsSFArabicSemiBold = "assets/fonts/SF-Arabic-SemiBold.ttf";
 
-  /// Assets for assetsFontsSFArabicRoundedRegular
-  /// assets/fonts/SFArabicRounded-Regular.ttf
-  static const String assetsFontsSFArabicRoundedRegular = "assets/fonts/SFArabicRounded-Regular.ttf";
+  /// Assets for assetsFontsSfArabicBlack
+  /// assets/fonts/sf-arabic-black.ttf
+  static const String assetsFontsSfArabicBlack = "assets/fonts/sf-arabic-black.ttf";
 
   /// Assets for assetsIconIcon
   /// assets/icon/icon.png
@@ -49,6 +49,10 @@ class Assets {
   /// Assets for assetsImagesCleaner
   /// assets/images/cleaner.jpeg
   static const String assetsImagesCleaner = "assets/images/cleaner.jpeg";
+
+  /// Assets for assetsImagesDriverLogo
+  /// assets/images/driver_logo.jpeg
+  static const String assetsImagesDriverLogo = "assets/images/driver_logo.jpeg";
 
   /// Assets for assetsImagesFaliureWidget
   /// assets/images/faliure_widget.png
@@ -83,8 +87,8 @@ class Assets {
   static const String assetsImagesOnboarding3 = "assets/images/onboarding3.jpg";
 
   /// Assets for assetsImagesVideoSplash
-  /// assets/images/video_splash.mov
-  static const String assetsImagesVideoSplash = "assets/images/video_splash.mov";
+  /// assets/images/video_splash.mp4
+  static const String assetsImagesVideoSplash = "assets/images/video_splash.mp4";
 
   /// Assets for assetsTranslationsAr
   /// assets/translations/ar.json
