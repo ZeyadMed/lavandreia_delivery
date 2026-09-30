@@ -1,38 +1,11 @@
 import 'package:equatable/equatable.dart';
+import 'package:lavanderia_delivery/features/auth/register/models/driver_register_request.dart';
 
-class RegisterEvent extends Equatable{
-final String name;
-    final String phoneNumber;
-    final String password;
-    final  String address;
-    final  int cityId;
-    final  double latitude;
-    final double longitude;
-    final String deviceInfo;
-    final String deviceId;
+class RegisterEvent extends Equatable {
+  final DriverRegisterRequest request;
 
-  const RegisterEvent({
-    required this.name,
-    required this.phoneNumber,
-    required this.password,
-    required this.address,
-    required this.cityId,
-    required this.latitude,
-    required this.longitude,
-    required this.deviceInfo,
-    required this.deviceId,
-  });
+  const RegisterEvent(this.request);
 
   @override
-  List<Object?> get props => [
-    name,
-    phoneNumber,
-    password,
-    address,
-    cityId,
-    latitude,
-    longitude,
-    deviceInfo,
-    deviceId,
-  ];
+  List<Object?> get props => [request];
 }

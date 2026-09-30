@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:lavanderia_delivery/core/common_widget/label.dart';
@@ -10,8 +11,10 @@ import 'package:lavanderia_delivery/core/helpers/validators.dart';
 import 'package:lavanderia_delivery/core/style/app_colors.dart';
 import 'package:lavanderia_delivery/core/theme/text_styles.dart';
 import 'package:lavanderia_delivery/core/widget/custom_text_field.dart';
-import 'package:lavanderia_delivery/features/auth/register/models/libya_governorate.dart';
+import 'package:lavanderia_delivery/core/bloc/base_bloc.dart';
+import 'package:lavanderia_delivery/features/auth/register/models/city_model.dart';
 import 'package:lavanderia_delivery/features/auth/register/models/register_form_data.dart';
+import 'package:lavanderia_delivery/features/auth/register/presentation/logic/city_cubit.dart';
 
 /// عنوان صغير فوق كل خانة في شاشات التسجيل
 class RegisterFieldLabel extends StatelessWidget {
@@ -82,16 +85,12 @@ class RegisterTextField extends StatelessWidget {
   }
 }
 
-/// دروب داون المحافظات الليبية
-class GovernorateDropdown extends StatelessWidget {
-  final LibyaGovernorate? value;
-  final ValueChanged<LibyaGovernorate?> onChanged;
+/// دروب داون المدن اللي جاية من api/auth/cities عن طريق CityCubit
+class CityDropdown extends StatelessWidget {
+  final CityModel? value;
+  final ValueChanged<CityModel?> onChanged;
 
-  const GovernorateDropdown({
-    super.key,
-    required this.value,
-    required this.onChanged,
-  });
+  const CityDropdown({super.key, required this.value, required this.onChanged});
 
   OutlineInputBorder _border(Color color, [double width = 0.5]) =>
       OutlineInputBorder(
@@ -101,53 +100,52 @@ class GovernorateDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final languageCode = context.locale.languageCode;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const RegisterFieldLabel('governorate'),
-        Gap(8.h),
-        DropdownButtonFormField<LibyaGovernorate>(
-          initialValue: value,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-          dropdownColor: AppColors.whiteColor,
-          borderRadius: BorderRadius.circular(12.r),
-          menuMaxHeight: 350.h,
-          style: TextStyles.darkRegular16,
-          hint: Text(
-            'select_governorate'.tr(),
-            style: TextStyles.greyColor2Regular14,
-          ),
-          validator: (value) =>
-              value == null ? 'governorate_required'.tr() : null,
-          items: LibyaGovernorate.all
-              .map(
-                (governorate) => DropdownMenuItem(
-                  value: governorate,
-                  child: Text(governorate.localizedName(languageCode)),
-                ),
-              )
-              .toList(),
-          onChanged: onChanged,
-          decoration: InputDecoration(
-            contentPadding: EdgeInsets.symmetric(
-              vertical: 16.h,
-              horizontal: 20.w,
+    return BlocBuilder<CityCubit, BaseState<CityModel>>(
+      builder: (context, state) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const RegisterFieldLabel('governorate'),
+          Gap(8.h),
+          DropdownButtonFormField<CityModel>(
+            initialValue: value,
+            isExpanded: true,
+            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+            dropdownColor: AppColors.whiteColor,
+            borderRadius: BorderRadius.circular(12.r),
+            menuMaxHeight: 350.h,
+            style: TextStyles.darkRegular16,
+            hint: Text(
+              'select_governorate'.tr(),
+              style: TextStyles.greyColor2Regular14,
             ),
-            fillColor: AppColors.whiteColor.withValues(alpha: 0.9),
-            filled: true,
-            enabledBorder: _border(Colors.grey),
-            focusedBorder: _border(AppColors.primaryColor),
-            errorBorder: _border(Colors.red, 1),
-            focusedErrorBorder: _border(Colors.redAccent, 1),
-            errorStyle: const TextStyle(
-              color: Colors.redAccent,
-              fontWeight: FontWeight.bold,
+            validator: (value) =>
+                value == null ? 'governorate_required'.tr() : null,
+            items: state.items
+                .map(
+                  (city) =>
+                      DropdownMenuItem(value: city, child: Text(city.name)),
+                )
+                .toList(),
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              contentPadding: EdgeInsets.symmetric(
+                vertical: 16.h,
+                horizontal: 20.w,
+              ),
+              fillColor: AppColors.whiteColor.withValues(alpha: 0.9),
+              filled: true,
+              enabledBorder: _border(Colors.grey),
+              focusedBorder: _border(AppColors.primaryColor),
+              errorBorder: _border(Colors.red, 1),
+              focusedErrorBorder: _border(Colors.redAccent, 1),
+              errorStyle: const TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -1,136 +1,263 @@
-import 'dart:io';
-
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lavanderia_delivery/core/bloc/base_bloc.dart';
+import 'package:lavanderia_delivery/core/common_widget/custom_error_message.dart';
 import 'package:lavanderia_delivery/core/common_widget/custom_success_message.dart';
-import 'package:lavanderia_delivery/core/helpers/image_picker_helper.dart';
 import 'package:lavanderia_delivery/core/helpers/validators.dart';
+import 'package:lavanderia_delivery/core/service_locator/service_locator.dart';
 import 'package:lavanderia_delivery/core/style/app_colors.dart';
 import 'package:lavanderia_delivery/core/theme/text_styles.dart';
+import 'package:lavanderia_delivery/features/auth/register/models/city_model.dart';
+import 'package:lavanderia_delivery/features/auth/register/models/register_form_data.dart';
+import 'package:lavanderia_delivery/features/auth/register/presentation/logic/city_cubit.dart';
+import 'package:lavanderia_delivery/features/auth/register/presentation/view/widget/register_form_widgets.dart';
 import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_colors.dart';
 import 'package:lavanderia_delivery/features/profile/models/driver_profile_model.dart';
+import 'package:lavanderia_delivery/features/profile/models/update_profile_request.dart';
+import 'package:lavanderia_delivery/features/profile/presentation/logic/update_profile_cubit.dart';
 
-/// شاشة تعديل الملف الشخصي: بترجع البيانات الجديدة لشاشة حسابي لما المندوب يحفظ
-class EditProfileScreen extends StatefulWidget {
+/// شاشة تعديل الملف الشخصي: بتبعت التعديلات لـ PUT api/driver/profile
+/// وبترجع true لشاشة حسابي لما الحفظ ينجح عشان تجيب البيانات من جديد
+class EditProfileScreen extends StatelessWidget {
   final DriverProfileModel profile;
 
   const EditProfileScreen({super.key, required this.profile});
 
   @override
-  State<EditProfileScreen> createState() => _EditProfileScreenState();
+  Widget build(BuildContext context) {
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => getIt<UpdateProfileCubit>()),
+        BlocProvider(create: (_) => getIt<CityCubit>()..getCities()),
+      ],
+      child: _EditProfileView(profile: profile),
+    );
+  }
 }
 
-class _EditProfileScreenState extends State<EditProfileScreen> {
+class _EditProfileView extends StatefulWidget {
+  final DriverProfileModel profile;
+
+  const _EditProfileView({required this.profile});
+
+  @override
+  State<_EditProfileView> createState() => _EditProfileViewState();
+}
+
+class _EditProfileViewState extends State<_EditProfileView> {
   final _formKey = GlobalKey<FormState>();
-  late final _nameController = TextEditingController(text: widget.profile.name);
-  late final _phoneController = TextEditingController(
-    text: widget.profile.phone,
-  );
-  late final _emailController = TextEditingController(
-    text: widget.profile.email,
+  late final _nameController = TextEditingController(
+    text: widget.profile.fullName,
   );
   late final _addressController = TextEditingController(
     text: widget.profile.address,
   );
-  late File? _image = widget.profile.image;
+  late final _makeController = TextEditingController(
+    text: widget.profile.vehicleMake,
+  );
+  late final _modelController = TextEditingController(
+    text: widget.profile.vehicleModel,
+  );
+  late final _yearController = TextEditingController(
+    text: widget.profile.vehicleYear > 0 ? '${widget.profile.vehicleYear}' : '',
+  );
+  late final _plateController = TextEditingController(
+    text: widget.profile.plateNumber,
+  );
+  late VehicleType _vehicleType = widget.profile.vehicleTypeEnum;
+  late VehicleColor? _vehicleColor = widget.profile.vehicleColor.isEmpty
+      ? null
+      : widget.profile.vehicleColorEnum;
+
+  /// النص اللي بيتكتب لما اللون "لون آخر"
+  late final _otherColorController = TextEditingController(
+    text: _vehicleColor == VehicleColor.other
+        ? widget.profile.vehicleColor
+        : '',
+  );
+
+  /// بتتحدد بعد ما المدن توصل، عشان الدروب داون مايتعرضش بقيمة مش في الليستة
+  CityModel? _city;
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _emailController.dispose();
-    _addressController.dispose();
+    for (final controller in [
+      _nameController,
+      _addressController,
+      _makeController,
+      _modelController,
+      _yearController,
+      _plateController,
+      _otherColorController,
+    ]) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
-  void _pickImage() {
-    ImagePickerHelper.showImagePicker(context, (file) {
-      if (file != null) setState(() => _image = file);
-    });
+  String? _yearValidator(String? value) {
+    final empty = Validators.validateEmpty(value);
+    if (empty != null) return empty;
+    final year = int.tryParse(value!);
+    if (year == null || year < 1980 || year > DateTime.now().year + 1) {
+      return 'invalid_year'.tr();
+    }
+    return null;
   }
 
-  // TODO: هيتبعت للـ API لما يجهز
-  void _save() {
+  void _onCitiesLoaded(BuildContext context, BaseState<CityModel> state) {
+    if (!state.isSuccess || _city != null) return;
+    final match = state.items.where((city) => city.id == widget.profile.cityId);
+    if (match.isNotEmpty) setState(() => _city = match.first);
+  }
+
+  void _save(BuildContext context) {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
-    final updated = widget.profile.copyWith(
-      name: _nameController.text.trim(),
-      phone: _phoneController.text.trim(),
-      email: _emailController.text.trim(),
-      address: _addressController.text.trim(),
-      image: _image,
+    final color = _vehicleColor == VehicleColor.other
+        ? _otherColorController.text.trim()
+        : _vehicleColor!.name;
+
+    context.read<UpdateProfileCubit>().updateProfile(
+      UpdateProfileRequest(
+        fullName: _nameController.text.trim(),
+        address: _addressController.text.trim(),
+        cityId: _city!.id,
+        // الباك بيرجع النوع بحرف كابيتال (Car) فبنبعته بنفس الشكل
+        vehicleType:
+            _vehicleType.name[0].toUpperCase() + _vehicleType.name.substring(1),
+        vehicleMake: _makeController.text.trim(),
+        vehicleModel: _modelController.text.trim(),
+        vehicleYear: int.parse(_yearController.text.trim()),
+        vehicleColor: color,
+        plateNumber: _plateController.text.trim(),
+      ),
     );
-    CustomSuccessOverlay.show(context: context, text: 'profile_updated');
-    context.pop(updated);
+  }
+
+  void _onUpdateState(BuildContext context, BaseState<void> state) {
+    if (state.isSuccess) {
+      CustomSuccessOverlay.show(context: context, text: 'profile_updated');
+      context.pop(true);
+    } else if (state.isFailure) {
+      CustomErrorOverlay.show(context: context, text: state.errorMessage ?? '');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: AppColors.backgroundColor,
-        body: Column(
-          children: [
-            const _EditProfileHeader(),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.fromLTRB(16.w, 24.h, 16.w, 24.h),
-                children: [
-                  _ProfileImagePicker(image: _image, onTap: _pickImage),
-                  Gap(24.h),
-                  Container(
-                    padding: EdgeInsets.all(20.r),
-                    decoration: BoxDecoration(
-                      color: AppColors.whiteColor,
-                      borderRadius: BorderRadius.circular(22.r),
-                    ),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _ProfileTextField(
-                            label: 'full_name',
-                            controller: _nameController,
-                            validator: Validators.validateEmpty,
-                          ),
-                          _ProfileTextField(
-                            label: 'phone_number',
-                            controller: _phoneController,
-                            keyboardType: TextInputType.phone,
-                            validator: Validators.phoneNumberValidator,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(11),
-                            ],
-                          ),
-                          _ProfileTextField(
-                            label: 'email',
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            validator: Validators.emailValidator,
-                          ),
-                          _ProfileTextField(
-                            label: 'address',
-                            controller: _addressController,
-                            validator: Validators.validateEmpty,
-                          ),
-                          Gap(8.h),
-                          _SaveButton(onTap: _save),
-                        ],
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<UpdateProfileCubit, BaseState<void>>(
+          listener: _onUpdateState,
+        ),
+        BlocListener<CityCubit, BaseState<CityModel>>(
+          listener: _onCitiesLoaded,
+        ),
+      ],
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
+          backgroundColor: AppColors.backgroundColor,
+          body: Column(
+            children: [
+              const _EditProfileHeader(),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(16.w, 24.h, 16.w, 24.h),
+                  children: [
+                    _ProfileImage(imageUrl: widget.profile.profileImageUrl),
+                    Gap(24.h),
+                    Container(
+                      padding: EdgeInsets.all(20.r),
+                      decoration: BoxDecoration(
+                        color: AppColors.whiteColor,
+                        borderRadius: BorderRadius.circular(22.r),
+                      ),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _ProfileTextField(
+                              label: 'full_name',
+                              controller: _nameController,
+                              validator: Validators.validateEmpty,
+                            ),
+                            CityDropdown(
+                              value: _city,
+                              onChanged: (city) => setState(() => _city = city),
+                            ),
+                            Gap(16.h),
+                            _ProfileTextField(
+                              label: 'address',
+                              controller: _addressController,
+                              validator: Validators.validateEmpty,
+                            ),
+                            const RegisterFieldLabel('vehicle_type'),
+                            RegisterOptionSelector<VehicleType>(
+                              options: VehicleType.values,
+                              selected: _vehicleType,
+                              labelOf: (type) => type.labelKey,
+                              onSelected: (type) =>
+                                  setState(() => _vehicleType = type),
+                            ),
+                            Gap(16.h),
+                            _ProfileTextField(
+                              label: 'vehicle_brand',
+                              controller: _makeController,
+                              validator: Validators.validateEmpty,
+                            ),
+                            _ProfileTextField(
+                              label: 'vehicle_model',
+                              controller: _modelController,
+                              validator: Validators.validateEmpty,
+                            ),
+                            _ProfileTextField(
+                              label: 'manufacture_year',
+                              controller: _yearController,
+                              keyboardType: TextInputType.number,
+                              validator: _yearValidator,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(4),
+                              ],
+                            ),
+                            VehicleColorSelector(
+                              selected: _vehicleColor,
+                              otherController: _otherColorController,
+                              onSelected: (color) =>
+                                  setState(() => _vehicleColor = color),
+                            ),
+                            Gap(16.h),
+                            _ProfileTextField(
+                              label: 'plate_number',
+                              controller: _plateController,
+                              validator: Validators.validateEmpty,
+                            ),
+                            Gap(8.h),
+                            BlocBuilder<UpdateProfileCubit, BaseState<void>>(
+                              builder: (context, state) => _SaveButton(
+                                isLoading: state.isLoading,
+                                onTap: () => _save(context),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -189,47 +316,35 @@ class _EditProfileHeader extends StatelessWidget {
   }
 }
 
-/// صورة المندوب في دايرة بإطار أزرق وتحتها "تغيير الصورة"
-class _ProfileImagePicker extends StatelessWidget {
-  final File? image;
-  final VoidCallback onTap;
+/// صورة المندوب في دايرة بإطار أزرق، للعرض بس لأن الـ PUT مابيستقبلش صورة
+class _ProfileImage extends StatelessWidget {
+  final String? imageUrl;
 
-  const _ProfileImagePicker({required this.image, required this.onTap});
+  const _ProfileImage({required this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
+    final placeholder = Text('👤', style: TextStyle(fontSize: 42.sp));
     return Center(
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          children: [
-            Container(
-              width: 90.r,
-              height: 90.r,
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: HomeColors.lightBlue,
-                border: Border.all(color: AppColors.primaryColor, width: 3),
-              ),
-              alignment: Alignment.center,
-              child: image != null
-                  ? Image.file(
-                      image!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                    )
-                  : Text('👤', style: TextStyle(fontSize: 42.sp)),
-            ),
-            Gap(10.h),
-            Text(
-              'change_photo'.tr(),
-              style: TextStyles.boldStyle(14, color: AppColors.primaryColor),
-            ),
-          ],
+      child: Container(
+        width: 90.r,
+        height: 90.r,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: HomeColors.lightBlue,
+          border: Border.all(color: AppColors.primaryColor, width: 3),
         ),
+        alignment: Alignment.center,
+        child: imageUrl != null && imageUrl!.isNotEmpty
+            ? CachedNetworkImage(
+                imageUrl: imageUrl!,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                errorWidget: (_, _, _) => placeholder,
+              )
+            : placeholder,
       ),
     );
   }
@@ -306,9 +421,10 @@ class _ProfileTextField extends StatelessWidget {
 }
 
 class _SaveButton extends StatelessWidget {
+  final bool isLoading;
   final VoidCallback onTap;
 
-  const _SaveButton({required this.onTap});
+  const _SaveButton({required this.isLoading, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -318,14 +434,27 @@ class _SaveButton extends StatelessWidget {
       borderRadius: radius,
       child: InkWell(
         borderRadius: radius,
-        onTap: onTap,
+        // بنقفل الزرار وقت الطلب عشان مايتبعتش مرتين
+        onTap: isLoading ? null : onTap,
         child: SizedBox(
           height: 56.h,
           child: Center(
-            child: Text(
-              'save_changes'.tr(),
-              style: TextStyles.boldStyle(16, color: AppColors.whiteColor),
-            ),
+            child: isLoading
+                ? SizedBox(
+                    width: 22.r,
+                    height: 22.r,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: AppColors.whiteColor,
+                    ),
+                  )
+                : Text(
+                    'save_changes'.tr(),
+                    style: TextStyles.boldStyle(
+                      16,
+                      color: AppColors.whiteColor,
+                    ),
+                  ),
           ),
         ),
       ),

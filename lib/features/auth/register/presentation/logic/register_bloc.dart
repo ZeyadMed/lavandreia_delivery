@@ -17,17 +17,7 @@ class RegisterBloc extends Bloc<RegisterEvent, BaseState<RegisterModel>> {
   ) async {
     emit(BaseState(status: Status.loading));
 
-    final result = await _registerDataSource.register(
-      name: event.name,
-      phoneNumber: event.phoneNumber,
-      password: event.password,
-      address: event.address,
-      cityId: event.cityId,
-      latitude: event.latitude,
-      longitude: event.longitude,
-      deviceInfo: event.deviceInfo,
-      deviceId: event.deviceId,
-    );
+    final result = await _registerDataSource.register(event.request);
 
     result.fold(
       (failure) => emit(

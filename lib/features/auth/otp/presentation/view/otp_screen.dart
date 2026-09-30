@@ -98,12 +98,7 @@ class _OtpScreenState extends State<OtpScreen> {
     if (context.read<VerifyPhoneBloc>().state.isLoading) return;
 
     context.read<VerifyPhoneBloc>().add(
-      VerifyPhoneEvent(
-        phoneNumber: widget.phoneNumber,
-        code: code,
-        deviceInfo: '',
-        deviceId: '',
-      ),
+      VerifyPhoneEvent(phoneNumber: widget.phoneNumber, code: code),
     );
   }
 
@@ -116,10 +111,9 @@ class _OtpScreenState extends State<OtpScreen> {
         body: BlocConsumer<VerifyPhoneBloc, BaseState<AuthModel>>(
           listener: (context, state) {
             if (state.isSuccess) {
-              // التوكنز اتحفظت جوه authenticate فالمستخدم بقى داخل،
-              // بنوديه الناف بار على طول من غير ما يعيد تسجيل الدخول
+              // الرقم اتفعل بس الحساب لسه تحت مراجعة الإدارة
               context.showSuccessMessage(state.data?.message ?? '');
-              context.go(AppRouter.initialRoot);
+              context.go(AppRouter.accountUnderReview);
             }
             if (state.isFailure) {
               context.showErrorMessage(state.errorMessage ?? '');

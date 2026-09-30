@@ -20,8 +20,6 @@ class VerifyPhoneBloc extends Bloc<VerifyPhoneEvent, BaseState<AuthModel>> {
     final result = await _verifyPhoneDataSource.verifyPhone(
       phoneNumber: event.phoneNumber,
       code: event.code,
-      deviceInfo: event.deviceInfo,
-      deviceId: event.deviceId,
     );
 
     result.fold(

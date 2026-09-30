@@ -5,14 +5,17 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lavanderia_delivery/core/bloc/base_bloc.dart';
+import 'package:lavanderia_delivery/core/common_widget/label.dart';
 import 'package:lavanderia_delivery/core/router/app_router.dart';
 import 'package:lavanderia_delivery/core/service_locator/service_locator.dart';
 import 'package:lavanderia_delivery/core/style/app_colors.dart';
 import 'package:lavanderia_delivery/core/theme/text_styles.dart';
 import 'package:lavanderia_delivery/features/auth/logout/presentation/logic/logout_bloc.dart';
 import 'package:lavanderia_delivery/features/auth/logout/presentation/logic/logout_event.dart';
+import 'package:lavanderia_delivery/features/auth/register/models/register_form_data.dart';
 import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_colors.dart';
 import 'package:lavanderia_delivery/features/profile/models/driver_profile_model.dart';
+import 'package:lavanderia_delivery/features/profile/presentation/logic/profile_cubit.dart';
 import 'package:lavanderia_delivery/features/profile/presentation/view/widget/profile_widgets.dart';
 
 /// شاشة حسابي: هيدر فيه بيانات المندوب، كارت المركبة، القايمة، وزرار الخروج
@@ -32,76 +35,106 @@ class _ProfileScreenState extends State<ProfileScreen> {
   static const int _tripsTabIndex = 1;
   static const int _notificationsTabIndex = 2;
 
-  // TODO: هتتجاب من بيانات المندوب لما الـ API يجهز
-  DriverProfileModel _profile = const DriverProfileModel(
-    name: 'أحمد محمد علي',
-    phone: '01012345678',
-    email: 'ahmed@example.com',
-    address: 'مدينة نصر، القاهرة',
-  );
-  static const String _vehicleModel = 'تويوتا كورولا 2020';
-  static const String _plateNumber = 'أ ب ج 123';
-  static const String _vehicleColor = 'أبيض';
-
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => getIt<LogoutBloc>(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => getIt<LogoutBloc>()),
+        BlocProvider(create: (_) => getIt<ProfileCubit>()..getProfile()),
+      ],
       child: BlocListener<LogoutBloc, BaseState<void>>(
         listener: (context, state) {
           if (state.isSuccess) context.go(AppRouter.login);
         },
         child: Scaffold(
           backgroundColor: AppColors.backgroundColor,
-          body: Column(
-            children: [
-              ProfileHeader(
-                name: _profile.name,
-                phone: _profile.phone,
-                image: _profile.image,
-              ),
-              Expanded(
-                child: ListView(
-                  padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 24.h),
-                  children: [
-                    const VehicleCard(
-                      model: _vehicleModel,
-                      plateNumber: _plateNumber,
-                      color: _vehicleColor,
+          body: BlocBuilder<ProfileCubit, BaseState<DriverProfileModel>>(
+            builder: (context, state) {
+              final profile = state.data;
+              return Column(
+                children: [
+                  ProfileHeader(
+                    name: profile?.fullName ?? '',
+                    phone: profile?.phoneNumber ?? '',
+                    imageUrl: profile?.profileImageUrl,
+                    isVerified: profile?.phoneNumberConfirmed ?? false,
+                  ),
+                  Expanded(
+                    child: ListView(
+                      padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 24.h),
+                      children: [
+                        if (profile != null)
+                          VehicleCard(
+                            model: [
+                              profile.vehicleMake,
+                              profile.vehicleModel,
+                              if (profile.vehicleYear > 0)
+                                '${profile.vehicleYear}',
+                            ].join(' '),
+                            plateNumber: profile.plateNumber,
+                            color: _vehicleColorLabel(profile),
+                          )
+                        else if (state.isFailure)
+                          _ProfileLoadError(
+                            message: state.errorMessage ?? '',
+                            onRetry: () =>
+                                context.read<ProfileCubit>().getProfile(),
+                          )
+                        else
+                          const Center(child: CircularProgressIndicator()),
+                        Gap(16.h),
+                        ProfileMenuCard(items: _menuItems(context, profile)),
+                        Gap(16.h),
+                        BlocBuilder<LogoutBloc, BaseState<void>>(
+                          builder: (context, state) => ProfileLogoutButton(
+                            isLoading: state.isLoading,
+                            onTap: () => _confirmLogout(context),
+                          ),
+                        ),
+                      ],
                     ),
-                    Gap(16.h),
-                    ProfileMenuCard(items: _menuItems(context)),
-                    Gap(16.h),
-                    BlocBuilder<LogoutBloc, BaseState<void>>(
-                      builder: (context, state) => ProfileLogoutButton(
-                        isLoading: state.isLoading,
-                        onTap: () => _confirmLogout(context),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-  /// بيفتح شاشة التعديل وبيستنى البيانات الجديدة ترجع منها عشان الهيدر يتحدث
-  Future<void> _openEditProfile() async {
-    final updated = await context.push<DriverProfileModel>(
-      AppRouter.updateProfileScreen,
-      extra: _profile,
-    );
-    if (updated != null && mounted) setState(() => _profile = updated);
+  /// الألوان الأساسية بتتحفظ بالـ key فبنترجمها، والـ "لون آخر" بيتعرض زي ما اتكتب
+  String _vehicleColorLabel(DriverProfileModel profile) {
+    final color = profile.vehicleColorEnum;
+    return color == VehicleColor.other
+        ? profile.vehicleColor
+        : color.labelKey.tr();
   }
 
-  List<ProfileMenuItem> _menuItems(BuildContext context) => [
+  /// بيفتح شاشة التعديل، ولو المندوب حفظ بنجيب البيانات من الباك تاني
+  /// عشان اسم المدينة وأي حاجة اتغيرت تتعرض زي ما اتحفظت فعلاً
+  Future<void> _openEditProfile(
+    BuildContext blocContext,
+    DriverProfileModel profile,
+  ) async {
+    final updated = await context.push<bool>(
+      AppRouter.updateProfileScreen,
+      extra: profile,
+    );
+    if (updated == true && blocContext.mounted) {
+      blocContext.read<ProfileCubit>().getProfile();
+    }
+  }
+
+  List<ProfileMenuItem> _menuItems(
+    BuildContext context,
+    DriverProfileModel? profile,
+  ) => [
     ProfileMenuItem(
       emoji: '✏️',
       titleKey: 'edit_profile',
-      onTap: _openEditProfile,
+      // مفيش حاجة نعدلها قبل ما البيانات توصل
+      onTap: profile == null ? null : () => _openEditProfile(context, profile),
     ),
     ProfileMenuItem(
       emoji: '📋',
@@ -177,5 +210,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (shouldLogout == true && blocContext.mounted) {
       blocContext.read<LogoutBloc>().add(const LogoutEvent());
     }
+  }
+}
+
+/// بتظهر مكان كارت المركبة لو البيانات ماوصلتش، مع زرار يعيد الطلب
+class _ProfileLoadError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _ProfileLoadError({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        LocalizedLabel(
+          text: message,
+          textAlign: TextAlign.center,
+          style: TextStyles.boldStyle(
+            14,
+            color: AppColors.greyColor,
+            weight: FontWeight.w400,
+          ),
+        ),
+        TextButton(
+          onPressed: onRetry,
+          child: Text(
+            'try_again'.tr(),
+            style: TextStyles.boldStyle(14, color: AppColors.primaryColor),
+          ),
+        ),
+      ],
+    );
   }
 }

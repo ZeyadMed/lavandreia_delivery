@@ -54,9 +54,6 @@ class _LoginScreenState extends State<LoginScreen> {
       LoginEvent(
         phoneNumber: completePhone,
         password: passwordController.text,
-        rememberMe: true,
-        deviceInfo: '',
-        deviceId: '',
       ),
     );
   }

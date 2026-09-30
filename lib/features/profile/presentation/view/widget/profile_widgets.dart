@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -13,14 +12,14 @@ import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_
 class ProfileHeader extends StatelessWidget {
   final String name;
   final String phone;
-  final File? image;
+  final String? imageUrl;
   final bool isVerified;
 
   const ProfileHeader({
     super.key,
     required this.name,
     required this.phone,
-    this.image,
+    this.imageUrl,
     this.isVerified = true,
   });
 
@@ -55,14 +54,15 @@ class ProfileHeader extends StatelessWidget {
                   ),
                 ),
                 alignment: Alignment.center,
-                child: image != null
-                    ? Image.file(
-                        image!,
+                child: imageUrl != null && imageUrl!.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: imageUrl!,
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
+                        errorWidget: (_, _, _) => _placeholder,
                       )
-                    : Text('👤', style: TextStyle(fontSize: 38.sp)),
+                    : _placeholder,
               ),
               Gap(12.h),
               Text(
@@ -87,6 +87,8 @@ class ProfileHeader extends StatelessWidget {
       ),
     );
   }
+
+  Widget get _placeholder => Text('👤', style: TextStyle(fontSize: 38.sp));
 }
 
 class _VerifiedBadge extends StatelessWidget {

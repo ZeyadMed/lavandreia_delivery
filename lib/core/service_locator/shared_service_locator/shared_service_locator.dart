@@ -14,6 +14,8 @@ import 'package:lavanderia_delivery/core/service_locator/auth_sevices_locator/lo
 import 'package:lavanderia_delivery/core/service_locator/auth_sevices_locator/logout_services_locator.dart';
 import 'package:lavanderia_delivery/core/service_locator/auth_sevices_locator/otp_services_locator.dart';
 import 'package:lavanderia_delivery/core/service_locator/auth_sevices_locator/register_services_locator.dart';
+import 'package:lavanderia_delivery/core/service_locator/notifications_services_locator/notifications_services_locator.dart';
+import 'package:lavanderia_delivery/core/service_locator/profile_services_locator/profile_services_locator.dart';
 
 class SharedServiceLocator {
   static Future<void> execute({required GetIt getIt}) async {
@@ -54,6 +56,8 @@ class SharedServiceLocator {
     await OtpServicesLocator.init(getIt: getIt);
     await LoginServicesLocator.init(getIt: getIt);
     await LogoutServicesLocator.init(getIt: getIt);
+    await ProfileServicesLocator.init(getIt: getIt);
+    await NotificationsServicesLocator.init(getIt: getIt);
 
     getIt.registerLazySingleton<LocationService>(() => LocationService());
 

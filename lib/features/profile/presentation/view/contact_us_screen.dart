@@ -1,23 +1,24 @@
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
+import 'package:lavanderia_delivery/core/bloc/base_bloc.dart';
 import 'package:lavanderia_delivery/core/common_widget/custom_app_bar.dart';
 import 'package:lavanderia_delivery/core/common_widget/custom_error_message.dart';
+import 'package:lavanderia_delivery/core/service_locator/service_locator.dart';
 import 'package:lavanderia_delivery/core/style/app_colors.dart';
 import 'package:lavanderia_delivery/core/theme/text_styles.dart';
 import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_colors.dart';
 import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_widgets.dart';
+import 'package:lavanderia_delivery/features/profile/models/contact_info_model.dart';
+import 'package:lavanderia_delivery/features/profile/presentation/logic/contact_info_cubit.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// شاشة تواصل معنا: كل طريقة تواصل بتفتح التطبيق بتاعها
+/// شاشة تواصل معنا: الأرقام والإيميل جايين من api/auth/contacts
+/// وكل طريقة تواصل بتفتح التطبيق بتاعها
 class ContactUsScreen extends StatelessWidget {
   const ContactUsScreen({super.key});
-
-  // TODO: الأرقام والإيميل ثابتة لحد ما ييجوا من إعدادات السيرفر
-  static const String _phone = '+218911234567';
-  static const String _whatsapp = '+218911234567';
-  static const String _email = 'support@lavanderia.ly';
 
   /// بيفتح اللينك، ولو الجهاز مش عارف يفتحه بنعرض رسالة بدل ما الدوسة تضيع
   Future<void> _launch(BuildContext context, Uri uri) async {
@@ -33,45 +34,95 @@ class ContactUsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      appBar: const CustomAppBar(
-        title: 'contact_us',
+    return BlocProvider(
+      create: (_) => getIt<ContactInfoCubit>()..getContacts(),
+      child: Scaffold(
         backgroundColor: AppColors.backgroundColor,
+        appBar: const CustomAppBar(
+          title: 'contact_us',
+          backgroundColor: AppColors.backgroundColor,
+        ),
+        body: BlocBuilder<ContactInfoCubit, BaseState<ContactInfoModel>>(
+          builder: (context, state) {
+            final contacts = state.data;
+            return ListView(
+              padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 24.h),
+              children: [
+                const _ContactHeaderCard(),
+                Gap(16.h),
+                if (contacts != null)
+                  ..._channels(context, contacts)
+                else if (state.isFailure)
+                  _ContactLoadError(
+                    message: state.errorMessage ?? '',
+                    onRetry: () =>
+                        context.read<ContactInfoCubit>().getContacts(),
+                  )
+                else
+                  const Center(child: CircularProgressIndicator()),
+                // Gap(16.h),
+                // const _WorkingHoursCard(),
+              ],
+            );
+          },
+        ),
       ),
-      body: ListView(
-        padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 24.h),
-        children: [
-          const _ContactHeaderCard(),
-          Gap(16.h),
+    );
+  }
+
+  /// الحقول الفاضية مابتظهرش عشان مايبقاش فيه كارت بيفتح لينك فاضي
+  List<Widget> _channels(BuildContext context, ContactInfoModel contacts) {
+    final cards = [
+      for (final phone in [contacts.phoneNumber1, contacts.phoneNumber2])
+        if (phone.isNotEmpty)
           _ContactChannelCard(
             emoji: '📞',
             color: HomeColors.lightBlue,
             titleKey: 'contact_phone',
-            value: _phone,
-            onTap: () => _launch(context, Uri.parse('tel:$_phone')),
+            value: phone,
+            onTap: () => _launch(context, Uri(scheme: 'tel', path: phone)),
           ),
-          Gap(12.h),
-          _ContactChannelCard(
-            emoji: '💬',
-            color: HomeColors.lightGreen,
-            titleKey: 'contact_whatsapp',
-            value: _whatsapp,
-            onTap: () => _launch(
-              context,
-              Uri.parse('https://wa.me/${_whatsapp.replaceAll('+', '')}'),
+      if (contacts.email.isNotEmpty)
+        _ContactChannelCard(
+          emoji: '✉️',
+          color: HomeColors.lightOrange,
+          titleKey: 'contact_email',
+          value: contacts.email,
+          onTap: () =>
+              _launch(context, Uri(scheme: 'mailto', path: contacts.email)),
+        ),
+    ];
+    return [
+      for (int i = 0; i < cards.length; i++) ...[
+        if (i > 0) Gap(12.h),
+        cards[i],
+      ],
+    ];
+  }
+}
+
+class _ContactLoadError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _ContactLoadError({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return HomeCard(
+      child: Column(
+        children: [
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyles.boldStyle(
+              13,
+              color: AppColors.greyColor,
+              weight: FontWeight.w400,
             ),
           ),
-          Gap(12.h),
-          _ContactChannelCard(
-            emoji: '✉️',
-            color: HomeColors.lightOrange,
-            titleKey: 'contact_email',
-            value: _email,
-            onTap: () => _launch(context, Uri.parse('mailto:$_email')),
-          ),
-          Gap(16.h),
-          const _WorkingHoursCard(),
+          Gap(8.h),
+          TextButton(onPressed: onRetry, child: Text('try_again'.tr())),
         ],
       ),
     );

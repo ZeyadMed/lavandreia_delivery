@@ -1,3 +1,4 @@
+import 'package:lavanderia_delivery/core/cache_manager/cache_manager.dart';
 import 'package:lavanderia_delivery/core/helpers/generic_data_source.dart';
 import 'package:lavanderia_delivery/core/http/either.dart';
 import 'package:lavanderia_delivery/core/http/endpoints.dart';
@@ -8,9 +9,6 @@ abstract interface class LoginDataSource {
   Future<Either<Failure, AuthModel>> login({
     required String phoneNumber,
     required String password,
-    required bool rememberMe,
-    required String deviceInfo,
-    required String deviceId,
   });
 }
 
@@ -22,22 +20,27 @@ class LoginDataSourceImpl implements LoginDataSource {
   Future<Either<Failure, AuthModel>> login({
     required String phoneNumber,
     required String password,
-    required bool rememberMe,
-    required String deviceInfo,
-    required String deviceId,
   }) async {
     final result = await _genericDataSource.authenticate<AuthModel>(
       endpoint: Endpoints.login,
       data: {
         'phoneNumber': phoneNumber,
         'password': password,
-        'rememberMe': rememberMe,
-        'deviceInfo': deviceInfo,
-        'deviceId': deviceId,
+        // الجلسة دايماً طويلة، مفيش اختيار للمستخدم
+        'rememberMe': true,
+        'deviceToken': await _deviceToken(),
       },
       headers: {'Authorization': null},
       fromJson: (json) => AuthModel.fromJson(json),
     );
     return result;
+  }
+
+  /// الـ FCM token اللي الباك بيبعت عليه النوتفكيشنز.
+  /// بناخد المحفوظ من أول الأبلكيشن، ولو مش موجود بنجيبه من فايربيز تاني
+  Future<String> _deviceToken() async {
+    final cached = await CacheManager.getFcmToken();
+    if (cached != null && cached.isNotEmpty) return cached;
+    return await CacheManager.fetchAndSaveFcmToken() ?? '';
   }
 }

@@ -3,16 +3,9 @@ import 'package:equatable/equatable.dart';
 class VerifyPhoneEvent extends Equatable {
   final String phoneNumber;
   final String code;
-  final String deviceInfo;
-  final String deviceId;
 
-  const VerifyPhoneEvent({
-    required this.phoneNumber,
-    required this.code,
-    this.deviceInfo = '',
-    this.deviceId = '',
-  });
+  const VerifyPhoneEvent({required this.phoneNumber, required this.code});
 
   @override
-  List<Object?> get props => [phoneNumber, code, deviceInfo, deviceId];
+  List<Object?> get props => [phoneNumber, code];
 }

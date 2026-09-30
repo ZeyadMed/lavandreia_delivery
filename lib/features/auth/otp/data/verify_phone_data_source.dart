@@ -8,8 +8,6 @@ abstract interface class VerifyPhoneDataSource {
   Future<Either<Failure, AuthModel>> verifyPhone({
     required String phoneNumber,
     required String code,
-    required String deviceInfo,
-    required String deviceId,
   });
 }
 
@@ -21,17 +19,12 @@ class VerifyPhoneDataSourceImpl implements VerifyPhoneDataSource {
   Future<Either<Failure, AuthModel>> verifyPhone({
     required String phoneNumber,
     required String code,
-    required String deviceInfo,
-    required String deviceId,
   }) async {
-    final result = await _genericDataSource.authenticate<AuthModel>(
+    // postData مش authenticate: حساب المندوب بيبقى تحت المراجعة بعد التفعيل
+    // فمش بيدخل ومفيش توكنز نحفظها
+    final result = await _genericDataSource.postData<AuthModel>(
       endpoint: Endpoints.verifyPhone,
-      data: {
-        'phoneNumber': phoneNumber,
-        'code': code,
-        'deviceInfo': deviceInfo,
-        'deviceId': deviceId,
-      },
+      data: {'phoneNumber': phoneNumber, 'code': code},
       headers: {'Authorization': null},
       fromJson: (json) => AuthModel.fromJson(json),
     );

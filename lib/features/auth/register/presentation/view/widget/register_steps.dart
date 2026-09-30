@@ -23,7 +23,6 @@ class PersonalInfoStep extends StatefulWidget {
 
 class _PersonalInfoStepState extends State<PersonalInfoStep> {
   bool obscurePassword = true;
-  bool obscureConfirmPassword = true;
 
   @override
   Widget build(BuildContext context) {
@@ -86,12 +85,6 @@ class _PersonalInfoStepState extends State<PersonalInfoStep> {
               (phone == null || phone.isEmpty) ? 'phoneNumberEmpty'.tr() : null,
         ),
         RegisterTextField(
-          label: 'email',
-          controller: data.emailController,
-          keyboardType: TextInputType.emailAddress,
-          validator: Validators.emailValidator,
-        ),
-        RegisterTextField(
           label: 'password',
           controller: data.passwordController,
           keyboardType: TextInputType.visiblePassword,
@@ -101,26 +94,6 @@ class _PersonalInfoStepState extends State<PersonalInfoStep> {
             onPressed: () => setState(() => obscurePassword = !obscurePassword),
             icon: Icon(
               obscurePassword ? Icons.visibility_off : Icons.visibility,
-            ),
-          ),
-        ),
-        RegisterTextField(
-          label: 'confirm_password',
-          controller: data.confirmPasswordController,
-          keyboardType: TextInputType.visiblePassword,
-          obscureText: obscureConfirmPassword,
-          validator: (value) =>
-              Validators.validateEmpty(value) ??
-              Validators.repeatPasswordValidator(
-                value: value,
-                Password: data.passwordController.text,
-              ),
-          suffix: IconButton(
-            onPressed: () => setState(
-              () => obscureConfirmPassword = !obscureConfirmPassword,
-            ),
-            icon: Icon(
-              obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
             ),
           ),
         ),
@@ -167,9 +140,9 @@ class _IdentityStepState extends State<IdentityStep> {
           validator: Validators.validateEmpty,
           onDateSelected: (date) => data.birthDate = date,
         ),
-        GovernorateDropdown(
-          value: data.governorate,
-          onChanged: (value) => setState(() => data.governorate = value),
+        CityDropdown(
+          value: data.city,
+          onChanged: (value) => setState(() => data.city = value),
         ),
         RegisterTextField(
           label: 'address',
@@ -330,25 +303,21 @@ class ReviewStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final languageCode = context.locale.languageCode;
     return Column(
       children: [
         ReviewSectionCard(
           title: 'register_personal_info',
           rows: [
             MapEntry('full_name', data.nameController.text),
-            MapEntry('phone_number', data.completePhone),
-            MapEntry('email', data.emailController.text),
+            // علامات LTR عشان الرقم يتقري من الشمال (+218...) جوه الواجهة العربي
+            MapEntry('phone_number', '\u2066${data.completePhone}\u2069'),
           ],
         ),
         ReviewSectionCard(
           title: 'register_identity_info',
           rows: [
             MapEntry('national_id', data.nationalIdController.text),
-            MapEntry(
-              'governorate',
-              data.governorate?.localizedName(languageCode) ?? '',
-            ),
+            MapEntry('governorate', data.city?.name ?? ''),
           ],
         ),
         ReviewSectionCard(

@@ -20,9 +20,6 @@ class LoginBloc extends Bloc<LoginEvent, BaseState<AuthModel>> {
     final result = await _loginDataSource.login(
       phoneNumber: event.phoneNumber,
       password: event.password,
-      rememberMe: event.rememberMe,
-      deviceInfo: event.deviceInfo,
-      deviceId: event.deviceId,
     );
 
     result.fold(

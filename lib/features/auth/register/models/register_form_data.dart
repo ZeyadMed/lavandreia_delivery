@@ -1,7 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
-import 'package:lavanderia_delivery/features/auth/register/models/libya_governorate.dart';
+import 'package:lavanderia_delivery/features/auth/register/models/city_model.dart';
+import 'package:lavanderia_delivery/features/auth/register/models/driver_register_request.dart';
 
 enum VehicleType {
   car('vehicle_car'),
@@ -46,15 +47,15 @@ class RegisterFormData {
 
   /// الرقم كامل بكود الدولة (+218...)
   String completePhone = '';
-  final emailController = TextEditingController();
   final passwordController = TextEditingController();
-  final confirmPasswordController = TextEditingController();
 
   // الخطوة 2: بيانات الهوية
   final nationalIdController = TextEditingController();
   final birthDateController = TextEditingController();
   DateTime? birthDate;
-  LibyaGovernorate? governorate;
+
+  /// من api/auth/cities، والـ id بتاعها هو اللي بيتبعت في CityId
+  CityModel? city;
   final addressController = TextEditingController();
   File? idFrontImage;
   File? idBackImage;
@@ -84,13 +85,36 @@ class RegisterFormData {
   final plateNumberController = TextEditingController();
   File? vehicleImage;
 
+  /// بتتنادى بعد ما كل الخطوات تعدي الـ validate، فالحقول الإجبارية مش null
+  DriverRegisterRequest toRequest() => DriverRegisterRequest(
+    fullName: nameController.text.trim(),
+    phoneNumber: completePhone,
+    password: passwordController.text,
+    profileImage: profileImage!,
+    nationalId: nationalIdController.text.trim(),
+    dateOfBirth: birthDate!,
+    cityId: city!.id,
+    address: addressController.text.trim(),
+    nationalIdFrontImage: idFrontImage!,
+    nationalIdBackImage: idBackImage!,
+    licenseIssueDate: licenseIssueDate!,
+    licenseExpiryDate: licenseExpiryDate!,
+    licenseFrontImage: licenseFrontImage!,
+    licenseBackImage: licenseBackImage!,
+    vehicleType: vehicleType.name,
+    vehicleMake: vehicleBrandController.text.trim(),
+    vehicleModel: vehicleModelController.text.trim(),
+    vehicleYear: int.parse(manufactureYearController.text.trim()),
+    vehicleColor: vehicleColorValue,
+    plateNumber: plateNumberController.text.trim(),
+    vehicleImage: vehicleImage!,
+  );
+
   void dispose() {
     for (final controller in [
       nameController,
       phoneController,
-      emailController,
       passwordController,
-      confirmPasswordController,
       nationalIdController,
       birthDateController,
       addressController,
