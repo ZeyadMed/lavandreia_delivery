@@ -8,12 +8,17 @@ class NotificationModel extends Equatable {
   final bool isRead;
   final DateTime? createdAt;
 
+  /// لو الإشعار ليه علاقة برحلة، الضغط عليه بيفتحها
+  /// (الحقل مش موضح في الـ swagger فبنقبل أكتر من اسم)
+  final int? tripId;
+
   const NotificationModel({
     required this.id,
     required this.title,
     required this.body,
     required this.isRead,
     this.createdAt,
+    this.tripId,
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
@@ -26,6 +31,9 @@ class NotificationModel extends Equatable {
       createdAt: DateTime.tryParse(
         json['createdAt'] ?? json['sentAt'] ?? '',
       )?.toLocal(),
+      tripId: int.tryParse(
+        '${json['tripId'] ?? json['deliveryTripId'] ?? json['referenceId'] ?? ''}',
+      ),
     );
   }
 
@@ -36,9 +44,10 @@ class NotificationModel extends Equatable {
       body: body,
       isRead: isRead ?? this.isRead,
       createdAt: createdAt,
+      tripId: tripId,
     );
   }
 
   @override
-  List<Object?> get props => [id, title, body, isRead, createdAt];
+  List<Object?> get props => [id, title, body, isRead, createdAt, tripId];
 }

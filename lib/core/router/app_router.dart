@@ -15,6 +15,7 @@ import 'package:lavanderia_delivery/features/profile/presentation/view/earnings_
 import 'package:lavanderia_delivery/features/profile/presentation/view/edit_profile_screen.dart';
 import 'package:lavanderia_delivery/features/profile/presentation/view/privacy_policy_screen.dart';
 import 'package:lavanderia_delivery/features/splash/presentation/view/splash_screen.dart';
+import 'package:lavanderia_delivery/features/trips/presentation/view/active_trip_screen.dart';
 import 'package:lavanderia_delivery/main.dart';
 
 abstract class AppRouter {
@@ -36,6 +37,7 @@ abstract class AppRouter {
   static const String orderPending = '/orderPending';
   static const String confirmOrder = '/confirmOrder';
   static const String rejectOrder = '/rejectOrder';
+  static const String activeTrip = '/activeTrip';
 
   // ************* PROFILE *************
   static const String orderScreen = '/orderScreen';
@@ -112,6 +114,12 @@ abstract class AppRouter {
         path: changePassword,
         builder: (context, state) =>
             ChangePasswordScreen(args: state.extra as ResetPasswordArgs?),
+      ),
+      // رقم الرحلة (int?) بيتبعت في state.extra، ولو null بتفتح أول رحلة شغالة
+      GoRoute(
+        path: activeTrip,
+        builder: (context, state) =>
+            ActiveTripScreen(tripId: state.extra as int?),
       ),
       // PROFILE ROUTES
       GoRoute(

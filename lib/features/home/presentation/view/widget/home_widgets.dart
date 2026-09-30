@@ -4,9 +4,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:lavanderia_delivery/core/style/app_colors.dart';
 import 'package:lavanderia_delivery/core/theme/text_styles.dart';
-import 'package:lavanderia_delivery/features/home/models/delivery_order_model.dart';
 import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_colors.dart';
-import 'package:lavanderia_delivery/features/home/presentation/view/widget/new_order_bottom_sheet.dart';
+import 'package:lavanderia_delivery/features/trips/models/delivery_trip_model.dart';
+import 'package:lavanderia_delivery/features/trips/presentation/view/widget/trip_widgets.dart';
 
 /// الكارت الأبيض الأساسي اللي كل أقسام الرئيسية مبنية عليه
 class HomeCard extends StatelessWidget {
@@ -207,126 +207,16 @@ class HomeEmptyState extends StatelessWidget {
   }
 }
 
-/// كارت الطلب في ليست الطلبات الجديدة، الضغط عليه بيفتح نفس شيت الطلب الجديد
-class PendingOrderCard extends StatelessWidget {
-  final DeliveryOrderModel order;
+/// الرحلة اللي متعيّنة علينا ولسه ماخلصتش، الضغط عليها بيفتح شاشة الرحلة
+class ActiveTripBanner extends StatelessWidget {
+  final DeliveryTripModel trip;
   final VoidCallback onTap;
 
-  const PendingOrderCard({super.key, required this.order, required this.onTap});
+  const ActiveTripBanner({super.key, required this.trip, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return HomeCard(
-      onTap: onTap,
-      padding: EdgeInsets.all(14.r),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '📦 ${order.taskType}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyles.boldStyle(14, color: AppColors.blackColor),
-                ),
-              ),
-              Gap(8.w),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  color: HomeColors.lightBlue,
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: Text(
-                  '#${order.id}',
-                  style: TextStyles.boldStyle(
-                    11,
-                    color: AppColors.primaryColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Gap(12.h),
-          _RoutePoint(
-            emoji: '📍',
-            name: order.pickupName,
-            address: order.pickupAddress,
-            color: HomeColors.green,
-          ),
-          Padding(
-            padding: EdgeInsetsDirectional.only(start: 9.w),
-            child: SizedBox(
-              height: 14.h,
-              child: VerticalDivider(
-                width: 1,
-                thickness: 1.5,
-                color: AppColors.semiWhiteColor2,
-              ),
-            ),
-          ),
-          _RoutePoint(
-            emoji: '🏠',
-            name: order.dropoffName,
-            address: order.dropoffAddress,
-            color: HomeColors.orange,
-          ),
-          Gap(12.h),
-          OrderMetricsRow(order: order, compact: true),
-        ],
-      ),
-    );
-  }
-}
-
-class _RoutePoint extends StatelessWidget {
-  final String emoji;
-  final String name;
-  final String address;
-  final Color color;
-
-  const _RoutePoint({
-    required this.emoji,
-    required this.name,
-    required this.address,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(emoji, style: TextStyle(fontSize: 14.sp)),
-        Gap(8.w),
-        Text(name, style: TextStyles.boldStyle(13, color: color)),
-        Gap(6.w),
-        Expanded(
-          child: Text(
-            address,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyles.boldStyle(
-              12,
-              color: AppColors.greyColor,
-              weight: FontWeight.w400,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class SimulateOrderButton extends StatelessWidget {
-  final VoidCallback onPressed;
-
-  const SimulateOrderButton({super.key, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(18.r);
+    final radius = BorderRadius.circular(22.r);
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: radius,
@@ -345,14 +235,44 @@ class SimulateOrderButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: radius,
-          onTap: onPressed,
-          child: SizedBox(
-            height: 56.h,
-            child: Center(
-              child: Text(
-                '🔔 ${'simulate_new_order'.tr()}',
-                style: TextStyles.boldStyle(16, color: AppColors.whiteColor),
-              ),
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.all(16.r),
+            child: Row(
+              children: [
+                Text(trip.type.emoji, style: TextStyle(fontSize: 28.sp)),
+                Gap(12.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'current_trip'.tr(),
+                        style: TextStyles.boldStyle(
+                          16,
+                          color: AppColors.whiteColor,
+                        ),
+                      ),
+                      Gap(4.h),
+                      Text(
+                        '${trip.type.labelKey.tr()} • ${trip.displayNumber}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyles.boldStyle(
+                          12,
+                          color: AppColors.whiteColor.withValues(alpha: 0.85),
+                          weight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 16.sp,
+                  color: AppColors.whiteColor,
+                ),
+              ],
             ),
           ),
         ),

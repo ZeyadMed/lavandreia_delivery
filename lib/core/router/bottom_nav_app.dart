@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:lavanderia_delivery/core/common_widget/custom_error_message.dart';
+import 'package:lavanderia_delivery/core/realtime/realtime_service.dart';
 import 'package:lavanderia_delivery/core/service_locator/service_locator.dart';
 import 'package:lavanderia_delivery/core/style/app_colors.dart';
 import 'package:lavanderia_delivery/core/theme/text_styles.dart';
@@ -18,7 +19,8 @@ class BottomNavApp extends StatefulWidget {
   State<BottomNavApp> createState() => _BottomNavAppState();
 }
 
-class _BottomNavAppState extends State<BottomNavApp> {
+class _BottomNavAppState extends State<BottomNavApp>
+    with WidgetsBindingObserver {
   int _selectedIndex = 0;
   DateTime? _lastBackPressed;
   //final List<Widget?> _pages = List.filled(4, null);
@@ -55,6 +57,21 @@ class _BottomNavAppState extends State<BottomNavApp> {
     super.initState();
     // Only load home page initially
     _getPage(0);
+    // دي أول شاشة بعد اللوجين أو السبلاش، فمن هنا بنبدأ نستقبل أحداث الرحلات
+    WidgetsBinding.instance.addObserver(this);
+    getIt<RealtimeService>().start();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // النظام ممكن يقفل الـ socket والتطبيق في الخلفية
+    if (state == AppLifecycleState.resumed) getIt<RealtimeService>().start();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Widget _getPage(int index) {

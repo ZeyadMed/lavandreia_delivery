@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lavanderia_delivery/core/bloc/base_bloc.dart';
 import 'package:lavanderia_delivery/core/common_widget/custom_error_message.dart';
+import 'package:lavanderia_delivery/core/router/app_router.dart';
 import 'package:lavanderia_delivery/core/service_locator/service_locator.dart';
 import 'package:lavanderia_delivery/core/style/app_colors.dart';
 import 'package:lavanderia_delivery/core/theme/text_styles.dart';
@@ -114,9 +116,16 @@ class _NotificationsBody extends StatelessWidget {
               body: item.body,
               time: _timeAgo(item.createdAt),
               isRead: item.isRead,
-              onTap: item.isRead
+              onTap: item.isRead && item.tripId == null
                   ? null
-                  : () => _run(context, cubit.markAsRead(item.id)),
+                  : () {
+                      if (!item.isRead) {
+                        _run(context, cubit.markAsRead(item.id));
+                      }
+                      if (item.tripId != null) {
+                        context.push(AppRouter.activeTrip, extra: item.tripId);
+                      }
+                    },
             ),
           );
         },

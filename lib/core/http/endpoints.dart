@@ -1,6 +1,5 @@
 abstract interface class Endpoints {
   static const String baseUrl = 'https://lavanderia.runasp.net/';
-  static const String updateLocation = '';
 
   // ****************************** Auth ********************************
   static const String register = '/api/auth/driver/register';
@@ -50,6 +49,40 @@ abstract interface class Endpoints {
 
   /// PUT بيعلّم إشعار واحد كمقروء
   static String readNotification(int id) => 'api/driver/notifications/$id/read';
+
+  // ****************************** Trips ********************************
+  /// GET الرحلات اللي لسه من غير سواق حوالين المندوب
+  /// (type = Pickup | Dropoff, lat, lng, radiusKm, PageIndex, PageSize)
+  static const String availableTrips = 'api/driver/trips/available';
+
+  /// POST بيطلب الرحلة بـ { latitude, longitude, radiusKm }، والمغسلة هي اللي بتوافق
+  static String requestTrip(int tripId) => 'api/driver/trips/$tripId/request';
+
+  /// GET طلبات المندوب على الرحلات وحالتها (PageIndex, PageSize)
+  static const String tripRequests = 'api/driver/trips/requests';
+
+  /// GET الرحلات اللي اتعيّن عليها المندوب، الشغالة والمنتهية (PageIndex, PageSize)
+  static const String driverTrips = 'api/driver/trips';
+
+  /// POST multipart بصور الهدوم (photos) وقت الاستلام من العميل، وبيرجع OTP للمغسلة
+  static String collectTrip(int tripId) => 'api/driver/trips/$tripId/collect';
+
+  /// POST لما المندوب يوصل باب العميل في رحلة التسليم، وبيرجع OTP للعميل
+  static String arriveTrip(int tripId) => 'api/driver/trips/$tripId/arrive';
+
+  /// PUT بـ { isAvailable } بيفتح أو يقفل استقبال الرحلات
+  static const String driverAvailability = 'api/driver/availability';
+
+  // ****************************** Wallet ********************************
+  /// GET رصيد محفظة المندوب
+  static const String driverWallet = 'api/driver/wallet';
+
+  /// GET حركات المحفظة بالصفحات (PageIndex, PageSize)
+  static const String walletTransactions = 'api/driver/wallet/transactions';
+
+  // ****************************** Realtime ********************************
+  // TODO: اسم الـ hub لسه ماوصلناش من الباك، كل المسارات اللي جربناها بترجع 401
+  static const String realtimeHub = 'hubs/notifications';
 
   /// اند بوينتس مفتوحة بتتنادى قبل ما يبقى فيه جلسة، فمابنحطش عليها توكن
   /// والـ 401 منها معناه بيانات غلط مش جلسة منتهية

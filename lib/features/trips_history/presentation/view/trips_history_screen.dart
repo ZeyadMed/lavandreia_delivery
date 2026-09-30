@@ -1,12 +1,36 @@
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lavanderia_delivery/core/bloc/base_bloc.dart';
+import 'package:lavanderia_delivery/core/router/app_router.dart';
+import 'package:lavanderia_delivery/core/service_locator/service_locator.dart';
 import 'package:lavanderia_delivery/core/style/app_colors.dart';
 import 'package:lavanderia_delivery/core/theme/text_styles.dart';
 import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_colors.dart';
 import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_widgets.dart';
-import 'package:lavanderia_delivery/features/trips_history/models/trip_model.dart';
+import 'package:lavanderia_delivery/features/trips/models/delivery_trip_model.dart';
+import 'package:lavanderia_delivery/features/trips/presentation/view/widget/trip_widgets.dart';
+import 'package:lavanderia_delivery/features/trips_history/presentation/logic/my_trips_cubit.dart';
+
+/// فلتر الشاشة، بيتطبق على اللي اتحمل لأن الـ API مفيهوش فلتر بالحالة
+enum TripsFilter { active, completed, cancelled }
+
+extension on TripsFilter {
+  String get labelKey => switch (this) {
+    TripsFilter.active => 'trip_active',
+    TripsFilter.completed => 'trip_completed',
+    TripsFilter.cancelled => 'trip_cancelled',
+  };
+
+  bool matches(DeliveryTripModel trip) => switch (this) {
+    TripsFilter.active => trip.isActive,
+    TripsFilter.completed => trip.stage == TripStage.completed,
+    TripsFilter.cancelled => trip.stage == TripStage.cancelled,
+  };
+}
 
 class TripsHistoryScreen extends StatefulWidget {
   const TripsHistoryScreen({super.key});
@@ -16,86 +40,139 @@ class TripsHistoryScreen extends StatefulWidget {
 }
 
 class _TripsHistoryScreenState extends State<TripsHistoryScreen> {
-  // TODO: هتتجاب من الـ API لما يجهز
-  static final List<TripModel> _trips = [
-    TripModel(
-      orderNumber: 'ORD-10245',
-      customerName: 'أحمد محمد',
-      laundryName: 'مغسلة المدينة',
-      destination: 'مصر الجديدة',
-      price: 75,
-      date: DateTime(2026, 9, 23),
-      status: TripStatus.completed,
-    ),
-    TripModel(
-      orderNumber: 'ORD-10244',
-      customerName: 'سارة أحمد',
-      laundryName: 'مغسلة النيل',
-      destination: 'المعادي',
-      price: 60,
-      date: DateTime(2026, 9, 22),
-      status: TripStatus.completed,
-    ),
-    TripModel(
-      orderNumber: 'ORD-10243',
-      customerName: 'محمد علي',
-      laundryName: 'مغسلة الأمل',
-      destination: 'المهندسين',
-      price: 0,
-      date: DateTime(2026, 9, 21),
-      status: TripStatus.rejected,
-    ),
-    TripModel(
-      orderNumber: 'ORD-10242',
-      customerName: 'ليلى حسن',
-      laundryName: 'مغسلة الوطن',
-      destination: 'الزمالك',
-      price: 0,
-      date: DateTime(2026, 9, 20),
-      status: TripStatus.cancelled,
-    ),
-  ];
-
   /// null = الكل
-  TripStatus? _selectedStatus;
-
-  List<TripModel> get _filteredTrips => _selectedStatus == null
-      ? _trips
-      : _trips.where((trip) => trip.status == _selectedStatus).toList();
+  TripsFilter? _selectedFilter;
 
   @override
   Widget build(BuildContext context) {
-    final trips = _filteredTrips;
-    return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      body: Column(
+    return BlocProvider(
+      create: (_) => getIt<MyTripsCubit>()
+        ..initPagination()
+        ..fetch(page: 1),
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundColor,
+        body: Column(
+          children: [
+            const _TripsHeader(),
+            Gap(20.h),
+            _TripsFilterBar(
+              selected: _selectedFilter,
+              onChanged: (filter) => setState(() => _selectedFilter = filter),
+            ),
+            Expanded(
+              child: BlocBuilder<MyTripsCubit, BaseState<DeliveryTripModel>>(
+                builder: (context, state) =>
+                    _TripsList(state: state, filter: _selectedFilter),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TripsList extends StatelessWidget {
+  final BaseState<DeliveryTripModel> state;
+  final TripsFilter? filter;
+
+  const _TripsList({required this.state, required this.filter});
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<MyTripsCubit>();
+
+    if (state.isLoading && state.items.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final filter = this.filter;
+    final trips = filter == null
+        ? state.items
+        : state.items.where(filter.matches).toList();
+
+    if (trips.isEmpty) {
+      // ListView عشان الـ RefreshIndicator يشتغل حتى والليستة فاضية
+      return RefreshIndicator(
+        onRefresh: cubit.refresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 24.h),
+          children: [
+            if (state.isFailure)
+              _ErrorCard(
+                message: state.errorMessage ?? '',
+                onRetry: cubit.refresh,
+              )
+            else
+              const HomeEmptyState(
+                emoji: '🚗',
+                titleKey: 'no_trips',
+                subtitleKey: 'no_trips_hint',
+              ),
+          ],
+        ),
+      );
+    }
+
+    final showLoadMore = state.isLoadingMore || state.isLoadingMoreFauilare;
+
+    return RefreshIndicator(
+      onRefresh: cubit.refresh,
+      child: ListView.separated(
+        controller: cubit.scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 24.h),
+        itemCount: trips.length + (showLoadMore ? 1 : 0),
+        separatorBuilder: (_, _) => Gap(14.h),
+        itemBuilder: (context, index) {
+          if (index == trips.length) {
+            return state.isLoadingMore
+                ? const Center(child: CircularProgressIndicator())
+                : TextButton(
+                    onPressed: () => cubit.fetch(page: state.page),
+                    child: Text('try_again'.tr()),
+                  );
+          }
+          final trip = trips[index];
+          return TripCard(
+            trip: trip,
+            onTap: trip.isActive
+                ? () async {
+                    await context.push(AppRouter.activeTrip, extra: trip.id);
+                    cubit.refresh();
+                  }
+                : null,
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ErrorCard extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _ErrorCard({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return HomeCard(
+      padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 24.h),
+      child: Column(
         children: [
-          const _TripsHeader(),
-          Gap(20.h),
-          _TripsFilterBar(
-            selected: _selectedStatus,
-            onChanged: (status) => setState(() => _selectedStatus = status),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyles.boldStyle(
+              14,
+              color: AppColors.greyColor,
+              weight: FontWeight.w400,
+            ),
           ),
-          Expanded(
-            child: trips.isEmpty
-                ? ListView(
-                    padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 24.h),
-                    children: const [
-                      HomeEmptyState(
-                        emoji: '🚗',
-                        titleKey: 'no_trips',
-                        subtitleKey: 'no_trips_hint',
-                      ),
-                    ],
-                  )
-                : ListView.separated(
-                    padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 24.h),
-                    itemCount: trips.length,
-                    separatorBuilder: (_, _) => Gap(14.h),
-                    itemBuilder: (context, index) =>
-                        TripCard(trip: trips[index]),
-                  ),
-          ),
+          Gap(8.h),
+          TextButton(onPressed: onRetry, child: Text('try_again'.tr())),
         ],
       ),
     );
@@ -132,12 +209,12 @@ class _TripsHeader extends StatelessWidget {
 }
 
 class _TripsFilterBar extends StatelessWidget {
-  final TripStatus? selected;
-  final ValueChanged<TripStatus?> onChanged;
+  final TripsFilter? selected;
+  final ValueChanged<TripsFilter?> onChanged;
 
   const _TripsFilterBar({required this.selected, required this.onChanged});
 
-  static const List<TripStatus?> _filters = [null, ...TripStatus.values];
+  static const List<TripsFilter?> _filters = [null, ...TripsFilter.values];
 
   @override
   Widget build(BuildContext context) {
@@ -149,11 +226,11 @@ class _TripsFilterBar extends StatelessWidget {
         itemCount: _filters.length,
         separatorBuilder: (_, _) => Gap(8.w),
         itemBuilder: (context, index) {
-          final status = _filters[index];
+          final filter = _filters[index];
           return _FilterChip(
-            label: status == null ? 'all'.tr() : status.labelKey.tr(),
-            isSelected: status == selected,
-            onTap: () => onChanged(status),
+            label: filter == null ? 'all'.tr() : filter.labelKey.tr(),
+            isSelected: filter == selected,
+            onTap: () => onChanged(filter),
           );
         },
       ),
@@ -198,21 +275,21 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-/// كارت الرحلة: الحالة + رقم الطلب + العميل + المسار + السعر + التاريخ
+/// كارت الرحلة: الحالة + رقم الطلب + نوع الرحلة + المسار + الرسوم + التاريخ
 class TripCard extends StatelessWidget {
-  final TripModel trip;
+  final DeliveryTripModel trip;
   final VoidCallback? onTap;
 
   const TripCard({super.key, required this.trip, this.onTap});
 
-  String _formatDate(BuildContext context) {
-    final month = DateFormat.MMMM(context.locale.languageCode)
-        .format(trip.date);
-    return '${trip.date.day} $month ${trip.date.year}';
+  String _formatDate(BuildContext context, DateTime date) {
+    final month = DateFormat.MMMM(context.locale.languageCode).format(date);
+    return '${date.day} $month ${date.year}';
   }
 
   @override
   Widget build(BuildContext context) {
+    final date = trip.completedAt ?? trip.createdAt;
     return HomeCard(
       onTap: onTap,
       padding: EdgeInsets.all(18.r),
@@ -221,10 +298,10 @@ class TripCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              TripStatusBadge(status: trip.status),
+              TripStageBadge(stage: trip.stage),
               const Spacer(),
               Text(
-                '#${trip.orderNumber}',
+                trip.displayNumber,
                 textDirection: TextDirection.ltr,
                 style: TextStyles.boldStyle(14, color: AppColors.blackColor),
               ),
@@ -232,12 +309,12 @@ class TripCard extends StatelessWidget {
           ),
           Gap(12.h),
           Text(
-            trip.customerName,
+            '${trip.type.emoji} ${trip.type.labelKey.tr()}',
             style: TextStyles.boldStyle(16, color: AppColors.blackColor),
           ),
           Gap(6.h),
           Text(
-            '${trip.laundryName} ← ${trip.destination}',
+            '${trip.fromName} ← ${trip.toName}',
             style: TextStyles.boldStyle(
               13,
               color: AppColors.greyColor,
@@ -248,18 +325,19 @@ class TripCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                '${trip.price.toStringAsFixed(2)} ${'currency'.tr()}',
+                '${trip.fee.toStringAsFixed(2)} ${'currency'.tr()}',
                 style: TextStyles.boldStyle(16, color: HomeColors.green),
               ),
               const Spacer(),
-              Text(
-                _formatDate(context),
-                style: TextStyles.boldStyle(
-                  13,
-                  color: AppColors.lightTextColor,
-                  weight: FontWeight.w400,
+              if (date != null)
+                Text(
+                  _formatDate(context, date),
+                  style: TextStyles.boldStyle(
+                    13,
+                    color: AppColors.lightTextColor,
+                    weight: FontWeight.w400,
+                  ),
                 ),
-              ),
             ],
           ),
         ],
@@ -268,17 +346,25 @@ class TripCard extends StatelessWidget {
   }
 }
 
-class TripStatusBadge extends StatelessWidget {
-  final TripStatus status;
+class TripStageBadge extends StatelessWidget {
+  final TripStage stage;
 
-  const TripStatusBadge({super.key, required this.status});
+  const TripStageBadge({super.key, required this.stage});
 
   @override
   Widget build(BuildContext context) {
-    final (Color bg, Color fg) = switch (status) {
-      TripStatus.completed => (HomeColors.lightGreen, HomeColors.green),
-      TripStatus.rejected => (const Color(0xffFDECEC), HomeColors.red),
-      TripStatus.cancelled => (HomeColors.cardGrey, AppColors.greyColor),
+    final (Color bg, Color fg, String key) = switch (stage) {
+      TripStage.completed => (
+        HomeColors.lightGreen,
+        HomeColors.green,
+        'trip_completed',
+      ),
+      TripStage.cancelled => (
+        HomeColors.cardGrey,
+        AppColors.greyColor,
+        'trip_cancelled',
+      ),
+      _ => (HomeColors.lightBlue, AppColors.primaryColor, 'trip_active'),
     };
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
@@ -286,18 +372,7 @@ class TripStatusBadge extends StatelessWidget {
         color: bg,
         borderRadius: BorderRadius.circular(10.r),
       ),
-      child: Text(
-        status.labelKey.tr(),
-        style: TextStyles.boldStyle(12, color: fg),
-      ),
+      child: Text(key.tr(), style: TextStyles.boldStyle(12, color: fg)),
     );
   }
-}
-
-extension TripStatusX on TripStatus {
-  String get labelKey => switch (this) {
-    TripStatus.completed => 'trip_completed',
-    TripStatus.rejected => 'trip_rejected',
-    TripStatus.cancelled => 'trip_cancelled',
-  };
 }

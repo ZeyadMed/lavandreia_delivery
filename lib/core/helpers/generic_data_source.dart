@@ -255,15 +255,21 @@ class GenericDataSource {
     );
   }
 
+  /// [repeatListKeys]: الليستة بتتبعت بنفس المفتاح متكرر (photos, photos)
+  /// بدل photos[0] و photos[1]، لأن ASP.NET بيربط `List<IFormFile>` بالاسم ده بس
   Future<Either<Failure, T>> postFormData<T>({
     required String endpoint,
     Map<String, dynamic>? data,
     Map<String, dynamic>? queryParameters,
     Map<String, dynamic>? headers,
     T Function(Map<String, dynamic>)? fromJson,
+    bool repeatListKeys = false,
   }) async {
     // Process the data to handle lists properly
-    final processedData = _processFormData(data ?? {});
+    final processedData = _processFormData(
+      data ?? {},
+      repeatListKeys: repeatListKeys,
+    );
 
     final result = await _apiConsumer.uploadFile(
       endpoint,
@@ -302,14 +308,30 @@ class GenericDataSource {
   }
 
   Future<Map<String, dynamic>> _processFormData(
-      Map<String, dynamic> data) async {
+      Map<String, dynamic> data,
+      {bool repeatListKeys = false}) async {
     final processed = <String, dynamic>{};
 
     for (final entry in data.entries) {
       final key = entry.key;
       final value = entry.value;
 
-      if (value is File) {
+      if (repeatListKeys && value is List<File>) {
+        // FormData.fromMap بيكرر المفتاح لكل عنصر في الليستة (ListFormat.multi)
+        final files = <MultipartFile>[];
+        for (final file in value) {
+          if (await file.exists()) {
+            files.add(await MultipartFile.fromFile(
+              file.path,
+              filename: file.path.split('/').last,
+            ));
+          } else {
+            loggerWarn(
+                'File for key `$key` does not exist: ${file.path} -- skipping attachment.');
+          }
+        }
+        processed[key] = files;
+      } else if (value is File) {
         // Handle File objects by converting to MultipartFile
         final file = value;
         final fileName = file.path.split('/').last;

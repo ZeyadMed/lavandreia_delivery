@@ -10,12 +10,14 @@ import 'package:lavanderia_delivery/core/http/api_consumer.dart';
 import 'package:lavanderia_delivery/core/http/auth_interceptor.dart';
 import 'package:lavanderia_delivery/core/http/endpoints.dart';
 import 'package:lavanderia_delivery/core/http/token_refresh_service.dart';
+import 'package:lavanderia_delivery/core/realtime/realtime_service.dart';
 import 'package:lavanderia_delivery/core/service_locator/auth_sevices_locator/login_services_locator.dart';
 import 'package:lavanderia_delivery/core/service_locator/auth_sevices_locator/logout_services_locator.dart';
 import 'package:lavanderia_delivery/core/service_locator/auth_sevices_locator/otp_services_locator.dart';
 import 'package:lavanderia_delivery/core/service_locator/auth_sevices_locator/register_services_locator.dart';
 import 'package:lavanderia_delivery/core/service_locator/notifications_services_locator/notifications_services_locator.dart';
 import 'package:lavanderia_delivery/core/service_locator/profile_services_locator/profile_services_locator.dart';
+import 'package:lavanderia_delivery/core/service_locator/trips_services_locator/trips_services_locator.dart';
 
 class SharedServiceLocator {
   static Future<void> execute({required GetIt getIt}) async {
@@ -60,6 +62,12 @@ class SharedServiceLocator {
     await NotificationsServicesLocator.init(getIt: getIt);
 
     getIt.registerLazySingleton<LocationService>(() => LocationService());
+
+    // اتصال SignalR واحد للتطبيق كله، والكيوبتس بتسمع على الأحداث بتاعته
+    getIt.registerLazySingleton<RealtimeService>(
+      () => RealtimeService(getIt<TokenRefreshService>()),
+    );
+    await TripsServicesLocator.init(getIt: getIt);
 
     // فأي شاشة تانية (زي تأكيد الطلب) تقرا نفس العنوان منغير ما تجيبه تاني
     // getIt.registerLazySingleton<LocationController>(

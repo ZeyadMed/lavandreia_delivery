@@ -202,6 +202,28 @@ class CacheManager {
     }
   }
 
+  /// الـ OTP بيرجع مرة واحدة بس من collect أو arrive، فبنحفظه بالرحلة
+  /// عشان لو التطبيق اتقفل قبل ما المندوب يوريه للمغسلة أو للعميل مايضيعش
+  static Future<void> saveTripOtp(int tripId, String otp) async {
+    await sharedPreferences.setString('tripOtp_$tripId', otp);
+  }
+
+  static String? getTripOtp(int tripId) =>
+      sharedPreferences.getString('tripOtp_$tripId');
+
+  /// في رحلة التسليم مفيش API لاستلام الهدوم من المغسلة، فبنفتكر الخطوة محلياً
+  static Future<void> setPickedFromLaundry(int tripId) async {
+    await sharedPreferences.setBool('tripPickedFromLaundry_$tripId', true);
+  }
+
+  static bool isPickedFromLaundry(int tripId) =>
+      sharedPreferences.getBool('tripPickedFromLaundry_$tripId') ?? false;
+
+  static Future<void> clearTripData(int tripId) async {
+    await sharedPreferences.remove('tripOtp_$tripId');
+    await sharedPreferences.remove('tripPickedFromLaundry_$tripId');
+  }
+
   /// الباك بيرجع الـ id كـ string فبنحفظه string
   static Future<void> saveUserId(String userId) async {
     await sharedPreferences.setString(_userIdKey, userId);

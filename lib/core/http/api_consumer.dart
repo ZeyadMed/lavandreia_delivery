@@ -464,19 +464,19 @@ final class BaseApiConsumer implements ApiConsumer {
   Future<Failure> _handleDioError(DioException error) async {
     switch (error.type) {
       case DioExceptionType.cancel:
-        navigatorKey.currentContext!.showErrorMessage('تم الغاء الطلب ');
+        navigatorKey.currentContext?.showErrorMessage('تم الغاء الطلب ');
         return ServerFailure(message: 'تم إلغاء الطلب ');
       case DioExceptionType.connectionTimeout:
-        navigatorKey.currentContext!.showErrorMessage('انتهت مهلة الاتصال ');
+        navigatorKey.currentContext?.showErrorMessage('انتهت مهلة الاتصال ');
         return ServerFailure(message: 'انتهت مهلة الاتصال ');
       case DioExceptionType.receiveTimeout:
-        navigatorKey.currentContext!.showErrorMessage('انتهت مهلة الاتصال ');
+        navigatorKey.currentContext?.showErrorMessage('انتهت مهلة الاتصال ');
         return ServerFailure(message: 'انتهت مهلة الاستقبال في الاتصال ');
       case DioExceptionType.transformTimeout:
-        navigatorKey.currentContext!.showErrorMessage('انتهت مهلة التحويل ');
+        navigatorKey.currentContext?.showErrorMessage('انتهت مهلة التحويل ');
         return ServerFailure(message: 'انتهت مهلة التحويل ');
       case DioExceptionType.sendTimeout:
-        navigatorKey.currentContext!.showErrorMessage('انتهت مهلة الاتصال ');
+        navigatorKey.currentContext?.showErrorMessage('انتهت مهلة الاتصال ');
         return ServerFailure(message: 'انتهت مهلة الإرسال في الاتصال ');
       case DioExceptionType.badResponse:
         if (error.response?.statusCode == 401) {
@@ -492,7 +492,7 @@ final class BaseApiConsumer implements ApiConsumer {
               return ServerFailure(message: 'network failure ${error.message}');
             }
             if (error.response?.statusCode == 413) {
-              navigatorKey.currentContext!.showErrorMessage(
+              navigatorKey.currentContext?.showErrorMessage(
                 'File size is too large',
               );
 
@@ -502,7 +502,7 @@ final class BaseApiConsumer implements ApiConsumer {
               );
             }
             if (error.response?.statusCode == 404) {
-              navigatorKey.currentContext!.showErrorMessage('404');
+              navigatorKey.currentContext?.showErrorMessage('404');
               return ServerFailure(
                 message: '404',
                 statusCode: error.response?.statusCode,
@@ -546,7 +546,7 @@ final class BaseApiConsumer implements ApiConsumer {
 
                 // Show first message to user
                 if (messages.isNotEmpty) {
-                  navigatorKey.currentContext!.showErrorMessage(messages.first);
+                  navigatorKey.currentContext?.showErrorMessage(messages.first);
                 }
                 return ValidationFailure(
                   message: messages.first,
@@ -555,14 +555,14 @@ final class BaseApiConsumer implements ApiConsumer {
                 );
               }
 
-              // navigatorKey.currentContext!.showErrorMessage(message);
+              // navigatorKey.currentContext?.showErrorMessage(message);
               return ServerFailure(
                 message: message,
                 statusCode: error.response?.statusCode,
               );
             }
           } catch (e) {
-            // navigatorKey.currentContext!.showErrorMessage(e.toString());
+            // navigatorKey.currentContext?.showErrorMessage(e.toString());
             return ServerFailure(
               message:
                   'Received invalid status code: ${error.response?.statusCode}',
@@ -570,7 +570,7 @@ final class BaseApiConsumer implements ApiConsumer {
             );
           }
         }
-        // navigatorKey.currentContext!.showErrorMessage(error.message!);
+        // navigatorKey.currentContext?.showErrorMessage(error.message!);
         return ServerFailure(
           message:
               'Received invalid status code: ${error.response?.statusCode}',
@@ -578,7 +578,7 @@ final class BaseApiConsumer implements ApiConsumer {
       case DioExceptionType.badCertificate:
         return ServerFailure(message: 'تعذر الاتصال ');
       case DioExceptionType.connectionError:
-        navigatorKey.currentContext!.showErrorMessage('تعذر الاتصال ');
+        navigatorKey.currentContext?.showErrorMessage('تعذر الاتصال ');
         return NetworkFailure(message: 'تعذر الاتصال ');
       case DioExceptionType.unknown:
         return UnknownFailure(message: 'Unexpected error: ${error.message}');

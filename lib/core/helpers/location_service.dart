@@ -105,6 +105,25 @@ class LocationService {
     }
   }
 
+  /// الإحداثيات بس من غير تحويل لعنوان، أسرع بكتير
+  /// بتتبعت مع الرحلات المتاحة وطلب الرحلة عشان السيرفر يحسب المسافة والنطاق
+  Future<LocationResult> getCurrentPosition() async {
+    final permissionStatus = await _ensurePermission();
+    if (permissionStatus != LocationStatus.success) {
+      return LocationResult(status: permissionStatus);
+    }
+
+    final position = await _readPosition();
+    if (position == null) {
+      return const LocationResult(status: LocationStatus.failed);
+    }
+    return LocationResult(
+      status: LocationStatus.success,
+      latitude: position.latitude,
+      longitude: position.longitude,
+    );
+  }
+
   /// بيجيب الإحداثيات مع تايم أوت مضمون
   /// الـ timeLimit بتاع الplugin لوحده مش كفاية لأنه أحياناً مابيرجعش خالص
   /// (مثلاً لو البودز مش متسطبة أو الـ GPS بيلف من غير ما يلاقي)

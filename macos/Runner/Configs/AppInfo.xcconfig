@@ -8,7 +8,7 @@
 PRODUCT_NAME = lavanderia_delivery
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.lavanderiaDelivery
+PRODUCT_BUNDLE_IDENTIFIER = com.theone.lavanderiaDelivery
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 com.theone. All rights reserved.

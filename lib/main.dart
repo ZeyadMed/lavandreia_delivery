@@ -1,4 +1,8 @@
+import 'dart:developer';
+
 import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -6,6 +10,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:lavanderia_delivery/core/cache_manager/cache_manager.dart';
 import 'package:lavanderia_delivery/core/internet_connenction/internet_connection_state.dart';
+import 'package:lavanderia_delivery/core/notification/messaging_config.dart';
 import 'package:lavanderia_delivery/core/internet_connenction/internet_connenction_cubit.dart';
 import 'package:lavanderia_delivery/core/router/app_router.dart';
 import 'package:lavanderia_delivery/core/service_locator/service_locator.dart';
@@ -13,6 +18,7 @@ import 'package:lavanderia_delivery/core/style/app_colors.dart';
 import 'package:lavanderia_delivery/core/style/assets.dart';
 import 'package:lavanderia_delivery/core/theme/text_styles.dart';
 import 'package:lavanderia_delivery/core/theme/theme.dart';
+import 'package:lavanderia_delivery/firebase_options.dart';
 import 'package:lottie/lottie.dart';
 import 'dart:ui' as ui;
 
@@ -28,17 +34,22 @@ Future<void> main() async {
   // تهيئة ScreenUtil
   await ScreenUtil.ensureScreenSize();
 
-  // await Firebase.initializeApp(
-  //   options: DefaultFirebaseOptions.currentPlatform,
-  // );
-  // await FirebaseMessaging.instance.requestPermission();
-  // MessagingConfig.initFirebaseMessaging();
-  // FirebaseMessaging.onBackgroundMessage(MessagingConfig.messageHandler);
+  // من غير Firebase الـ deviceToken بيتبعت فاضي في اللوجين والـ push مابيوصلش
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    FirebaseMessaging.onBackgroundMessage(MessagingConfig.messageHandler);
+  } catch (e) {
+    log('Firebase init failed: $e');
+  }
 
   await CacheManager.init();
   await CacheManager.fetchAndSaveFcmToken();
   EasyLocalization.ensureInitialized();
   await DI.getItInit();
+  // بعد الـ DI لأنه بيعدّي الإشعارات على RealtimeService
+  MessagingConfig.initFirebaseMessaging();
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

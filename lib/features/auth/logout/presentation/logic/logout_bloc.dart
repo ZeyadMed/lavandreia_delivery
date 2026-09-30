@@ -3,13 +3,16 @@ import 'package:lavanderia_delivery/core/bloc/base_bloc.dart';
 import 'package:lavanderia_delivery/core/cache_manager/cache_manager.dart';
 import 'package:lavanderia_delivery/core/helpers/logger.dart';
 import 'package:lavanderia_delivery/core/http/session.dart';
+import 'package:lavanderia_delivery/core/realtime/realtime_service.dart';
 import 'package:lavanderia_delivery/features/auth/logout/data/logout_data_source.dart';
 import 'package:lavanderia_delivery/features/auth/logout/presentation/logic/logout_event.dart';
 
 class LogoutBloc extends Bloc<LogoutEvent, BaseState<void>> {
   final LogoutDataSource _logoutDataSource;
+  final RealtimeService _realtimeService;
 
-  LogoutBloc(this._logoutDataSource) : super(const BaseState()) {
+  LogoutBloc(this._logoutDataSource, this._realtimeService)
+    : super(const BaseState()) {
     on<LogoutEvent>(_onLogoutEvent);
   }
 
@@ -33,6 +36,8 @@ class LogoutBloc extends Bloc<LogoutEvent, BaseState<void>> {
     // لازم نمسح التوكنين مع بعض، وإلا الـ refreshToken هيفضل محفوظ
     // والسبلاش هيرجّع المستخدم على الهوم تاني. والسلة كمان بتتفضى.
     await Session.clear();
+    // عشان الحساب اللي هيدخل بعده مايستقبلش أحداث الرحلات بتاعته
+    await _realtimeService.stop();
 
     emit(const BaseState(status: Status.success));
   }
