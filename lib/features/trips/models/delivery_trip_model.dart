@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:lavanderia_delivery/features/trips/models/json_reader.dart';
+import 'package:lavanderia_delivery/features/trips/models/order_status.dart';
 
 /// Pickup: من بيت العميل للمغسلة، Dropoff: من المغسلة لبيت العميل
 enum TripType {
@@ -19,11 +20,15 @@ enum TripType {
 }
 
 /// المرحلة اللي الرحلة فيها من ناحية المندوب.
-/// الـ enum الحقيقي مش موجود في الـ swagger، فبنستنتجها من الاسم
-/// ومن حالة الطلب ومن وجود الـ OTP لحد ما الباك يوثقها
+/// بتتحدد من حالة الطلب الأول لأنها متوثقة في الـ swagger، ولو مش كفاية
+/// (زي AwaitingPickup اللي بتفضل طول رحلة الاستلام) من حالة الرحلة والـ OTP
 enum TripStage {
   /// لسه من غير سواق
   awaitingDriver,
+
+  /// Dropoff: المغسلة اختارتنا ورايحين ناخد الهدوم، ومستنيين المغسلة
+  /// تأكد التسليم (confirm-handover) قبل ما نتحرك للعميل
+  awaitingHandover,
 
   /// اتعيّن علينا ولسه ماستلمناش الهدوم (أو لسه ماوصلناش العميل في التسليم)
   assigned,
@@ -34,6 +39,9 @@ enum TripStage {
   /// Dropoff: وصلنا باب العميل ومعانا OTP مستنيين يأكده
   arrived,
   completed,
+
+  /// PickupFailed أو DeliveryFailed: العميل مش موجود أو العنوان غلط
+  failed,
   cancelled,
 }
 
@@ -65,7 +73,7 @@ class DeliveryTripModel extends Equatable {
   final int? orderId;
   final TripType type;
   final String rawStatus;
-  final String orderStatus;
+  final OrderStatus orderStatus;
   final num fee;
   final double? distanceKm;
   final TripPoint customer;
@@ -83,7 +91,7 @@ class DeliveryTripModel extends Equatable {
     required this.type,
     this.orderId,
     this.rawStatus = '',
-    this.orderStatus = '',
+    this.orderStatus = OrderStatus.unknown,
     this.fee = 0,
     this.distanceKm,
     this.customer = const TripPoint(),
@@ -104,15 +112,21 @@ class DeliveryTripModel extends Equatable {
     final customer = json.pickMap(['customer']) ?? const {};
     final order = json.pickMap(['order']) ?? const {};
 
+    final rawStatus = json.pickString(['status', 'tripStatus']);
+    var orderStatus = OrderStatus.parse(
+      json.pick(['orderStatus'], inside: inOrder) ?? order['status'],
+    );
+    // لو حالة الطلب مش جاية لوحدها، ممكن تكون هي نفسها اللي في status
+    if (orderStatus == OrderStatus.unknown) {
+      orderStatus = OrderStatus.tryParseName(rawStatus) ?? OrderStatus.unknown;
+    }
+
     return DeliveryTripModel(
       id: json.pickInt(['id', 'tripId', 'deliveryTripId']) ?? 0,
       orderId: json.pickInt(['orderId']) ?? order.pickInt(['id']),
       type: TripType.parse(json.pick(['type', 'tripType'])),
-      rawStatus: json.pickString(['status', 'tripStatus']),
-      orderStatus: _or(
-        json.pickString(['orderStatus'], inside: inOrder),
-        order.pickString(['status']),
-      ),
+      rawStatus: rawStatus,
+      orderStatus: orderStatus,
       fee: json.pickDouble(['fee', 'deliveryFee', 'amount', 'price']) ?? 0,
       distanceKm: json.pickDouble(['distanceKm', 'distance']),
       laundry: TripPoint(
@@ -192,20 +206,59 @@ class DeliveryTripModel extends Equatable {
 
   TripPoint get to => type == TripType.pickup ? laundry : customer;
 
-  TripStage get stage {
-    final status = rawStatus.toLowerCase();
-    final order = orderStatus.toLowerCase();
+  TripStage get stage => _stageFromOrder() ?? _stageFromTripStatus();
 
-    if (status.contains('cancel') || order == 'rejected') {
-      return TripStage.cancelled;
+  /// null لو حالة الطلب مش كفاية تحدد المرحلة
+  TripStage? _stageFromOrder() {
+    final order = orderStatus;
+    if (type == TripType.pickup) {
+      if (order == OrderStatus.pickupFailed) return TripStage.failed;
+      // الهدوم وصلت المغسلة، حتى لو اللي حصل بعد كده فشل في التسليم
+      if (order.isAfterPickup) return TripStage.completed;
+      if (order == OrderStatus.rejected) return TripStage.cancelled;
+      if (order == OrderStatus.cancelled) {
+        return _tripStatusSaysCompleted
+            ? TripStage.completed
+            : TripStage.cancelled;
+      }
+      // New / AwaitingPickup / unknown: حالة الطلب واحدة طول رحلة الاستلام
+      return null;
     }
-    if (status.contains('complet') ||
+
+    return switch (order) {
+      OrderStatus.delivered => TripStage.completed,
+      OrderStatus.deliveryFailed => TripStage.failed,
+      OrderStatus.cancelled || OrderStatus.rejected => TripStage.cancelled,
+      OrderStatus.awaitingDropoffCollection => TripStage.awaitingHandover,
+      OrderStatus.outForDelivery =>
+        _tripStatus.contains('arriv') || otpCode != null
+            ? TripStage.arrived
+            : TripStage.assigned,
+      // Ready (المغسلة لسه ماوافقتش) أو unknown
+      _ => null,
+    };
+  }
+
+  /// حالة الرحلة من غير اسم حالة الطلب لو هي اللي جاية في status،
+  /// عشان مثلاً AwaitingDropoffCollection فيها كلمة collect
+  String get _tripStatus => OrderStatus.tryParseName(rawStatus) != null
+      ? ''
+      : rawStatus.toLowerCase();
+
+  bool get _tripStatusSaysCompleted {
+    final status = _tripStatus;
+    return status.contains('complet') ||
         status.contains('deliver') ||
         status.contains('confirm') ||
-        status.contains('done') ||
-        _orderPassedTrip(order)) {
-      return TripStage.completed;
-    }
+        status.contains('done');
+  }
+
+  /// الـ enum بتاع حالة الرحلة مش موجود في الـ swagger، فبنستنتجها من الاسم
+  TripStage _stageFromTripStatus() {
+    final status = _tripStatus;
+    if (status.contains('cancel')) return TripStage.cancelled;
+    if (status.contains('fail')) return TripStage.failed;
+    if (_tripStatusSaysCompleted) return TripStage.completed;
     if (status.contains('arriv')) return TripStage.arrived;
     if (status.contains('collect') ||
         status.contains('picked') ||
@@ -215,7 +268,8 @@ class DeliveryTripModel extends Equatable {
     if (status.contains('pending') ||
         status.contains('available') ||
         status.contains('open') ||
-        status == 'new') {
+        status == 'new' ||
+        (status.isEmpty && orderStatus == OrderStatus.newOrder)) {
       return TripStage.awaitingDriver;
     }
     // الـ OTP بيرجع بس بعد collect أو arrive
@@ -225,26 +279,13 @@ class DeliveryTripModel extends Equatable {
     return TripStage.assigned;
   }
 
-  /// حالة الطلب بتقول الرحلة خلصت حتى لو حالة الرحلة نفسها مش واضحة:
-  /// الاستلام بيخلص لما الطلب يوصل المغسلة، والتسليم لما يبقى Delivered
-  bool _orderPassedTrip(String order) {
-    if (order.isEmpty) return false;
-    if (type == TripType.dropoff) return order == 'delivered';
-    const afterPickup = {
-      'atlaundrypendingmatch',
-      'adjustmentpendingapproval',
-      'inprogress',
-      'ready',
-      'outfordelivery',
-      'delivered',
-    };
-    return afterPickup.contains(order);
-  }
-
-  bool get isActive =>
-      stage != TripStage.completed &&
-      stage != TripStage.cancelled &&
-      stage != TripStage.awaitingDriver;
+  bool get isActive => switch (stage) {
+    TripStage.awaitingDriver ||
+    TripStage.completed ||
+    TripStage.failed ||
+    TripStage.cancelled => false,
+    _ => true,
+  };
 
   DeliveryTripModel copyWith({
     String? otpCode,

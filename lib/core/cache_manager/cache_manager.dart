@@ -211,17 +211,8 @@ class CacheManager {
   static String? getTripOtp(int tripId) =>
       sharedPreferences.getString('tripOtp_$tripId');
 
-  /// في رحلة التسليم مفيش API لاستلام الهدوم من المغسلة، فبنفتكر الخطوة محلياً
-  static Future<void> setPickedFromLaundry(int tripId) async {
-    await sharedPreferences.setBool('tripPickedFromLaundry_$tripId', true);
-  }
-
-  static bool isPickedFromLaundry(int tripId) =>
-      sharedPreferences.getBool('tripPickedFromLaundry_$tripId') ?? false;
-
   static Future<void> clearTripData(int tripId) async {
     await sharedPreferences.remove('tripOtp_$tripId');
-    await sharedPreferences.remove('tripPickedFromLaundry_$tripId');
   }
 
   /// الباك بيرجع الـ id كـ string فبنحفظه string

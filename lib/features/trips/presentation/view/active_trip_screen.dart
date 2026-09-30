@@ -79,10 +79,17 @@ class _TripBody extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 32.h),
         children: [
-          _TripSteps(trip: trip, pickedFromLaundry: state.pickedFromLaundry),
+          _TripSteps(trip: trip),
           Gap(16.h),
           ...switch ((trip.type, trip.stage)) {
             (_, TripStage.completed) => [_CompletedView(trip: trip)],
+            (_, TripStage.failed) => [
+              const HomeEmptyState(
+                emoji: '⚠️',
+                titleKey: 'trip_failed',
+                subtitleKey: 'trip_failed_hint',
+              ),
+            ],
             (_, TripStage.cancelled) => [
               const HomeEmptyState(
                 emoji: '🚫',
@@ -92,11 +99,11 @@ class _TripBody extends StatelessWidget {
             ],
             (TripType.pickup, TripStage.collected) => _pickupCollected(trip),
             (TripType.pickup, _) => _pickupAssigned(context, trip),
+            (TripType.dropoff, TripStage.awaitingHandover) => _dropoffAtLaundry(
+              trip,
+            ),
             (TripType.dropoff, TripStage.arrived) => _dropoffArrived(trip),
-            (TripType.dropoff, _) =>
-              state.pickedFromLaundry
-                  ? _dropoffToCustomer(context, trip)
-                  : _dropoffAtLaundry(context, trip),
+            (TripType.dropoff, _) => _dropoffToCustomer(context, trip),
           },
         ],
       ),
@@ -146,9 +153,9 @@ class _TripBody extends StatelessWidget {
     ];
   }
 
-  /// رحلة التسليم: رايح المغسلة ياخد الهدوم. مفيش API للخطوة دي
-  List<Widget> _dropoffAtLaundry(BuildContext context, DeliveryTripModel trip) {
-    final cubit = context.read<ActiveTripCubit>();
+  /// رحلة التسليم: رايح المغسلة ياخد الهدوم (AwaitingDropoffCollection).
+  /// المغسلة هي اللي بتأكد التسليم، ومن غير كده arrive بيترفض
+  List<Widget> _dropoffAtLaundry(DeliveryTripModel trip) {
     return [
       _PointActionsCard(
         emoji: '🧺',
@@ -156,25 +163,13 @@ class _TripBody extends StatelessWidget {
         point: trip.laundry,
         fallbackName: 'laundry'.tr(),
       ),
-      Gap(20.h),
-      SizedBox(
-        height: 54.h,
-        child: ElevatedButton(
-          onPressed: cubit.markPickedFromLaundry,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primaryColor,
-            foregroundColor: AppColors.whiteColor,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16.r),
-            ),
-          ),
-          child: Text(
-            'received_from_laundry'.tr(),
-            style: TextStyles.boldStyle(16, color: AppColors.whiteColor),
-          ),
-        ),
-      ),
+      Gap(16.h),
+      // TODO: لسه مش متأكدين الـ OTP ده بيرجع في الرحلة ولا من collect
+      if (trip.otpCode != null) ...[
+        _OtpCard(code: trip.otpCode, hintKey: 'show_otp_to_laundry_handover'),
+        Gap(16.h),
+      ],
+      const _WaitingCard(textKey: 'waiting_laundry_handover'),
     ];
   }
 
@@ -313,9 +308,8 @@ class _TripHeader extends StatelessWidget {
 /// مؤشر الخطوات التلاتة فوق الشاشة
 class _TripSteps extends StatelessWidget {
   final DeliveryTripModel trip;
-  final bool pickedFromLaundry;
 
-  const _TripSteps({required this.trip, required this.pickedFromLaundry});
+  const _TripSteps({required this.trip});
 
   List<String> get _steps => trip.type == TripType.pickup
       ? const ['step_go_to_customer', 'step_collect', 'step_laundry_confirm']
@@ -330,7 +324,8 @@ class _TripSteps extends StatelessWidget {
     (TripType.pickup, TripStage.collected) => 2,
     (TripType.pickup, _) => 1,
     (TripType.dropoff, TripStage.arrived) => 2,
-    (TripType.dropoff, _) => pickedFromLaundry ? 1 : 0,
+    (TripType.dropoff, TripStage.awaitingHandover) => 0,
+    (TripType.dropoff, _) => 1,
   };
 
   @override

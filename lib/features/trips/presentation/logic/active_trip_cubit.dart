@@ -21,9 +21,6 @@ class ActiveTripState extends Equatable {
   /// صور الهدوم اللي هتتبعت مع collect في رحلة الاستلام
   final List<File> photos;
   final bool isSubmitting;
-
-  /// رحلة التسليم: المندوب أكد إنه استلم الهدوم من المغسلة (خطوة محلية)
-  final bool pickedFromLaundry;
   final String? errorMessage;
 
   const ActiveTripState({
@@ -31,7 +28,6 @@ class ActiveTripState extends Equatable {
     this.trip,
     this.photos = const [],
     this.isSubmitting = false,
-    this.pickedFromLaundry = false,
     this.errorMessage,
   });
 
@@ -40,26 +36,17 @@ class ActiveTripState extends Equatable {
     DeliveryTripModel? trip,
     List<File>? photos,
     bool? isSubmitting,
-    bool? pickedFromLaundry,
     String? errorMessage,
   }) => ActiveTripState(
     status: status ?? this.status,
     trip: trip ?? this.trip,
     photos: photos ?? this.photos,
     isSubmitting: isSubmitting ?? this.isSubmitting,
-    pickedFromLaundry: pickedFromLaundry ?? this.pickedFromLaundry,
     errorMessage: errorMessage ?? this.errorMessage,
   );
 
   @override
-  List<Object?> get props => [
-    status,
-    trip,
-    photos,
-    isSubmitting,
-    pickedFromLaundry,
-    errorMessage,
-  ];
+  List<Object?> get props => [status, trip, photos, isSubmitting, errorMessage];
 }
 
 /// الرحلة الشغالة وخطواتها: الاستلام من العميل بالصور، أو الوصول لباب العميل،
@@ -128,22 +115,24 @@ class ActiveTripCubit extends Cubit<ActiveTripState> {
   }
 
   void _emitTrip(DeliveryTripModel trip) {
-    emit(
-      state.copyWith(
-        status: Status.success,
-        trip: trip,
-        pickedFromLaundry: CacheManager.isPickedFromLaundry(trip.id),
-      ),
-    );
+    emit(state.copyWith(status: Status.success, trip: trip));
     _updatePolling(trip);
-    if (trip.stage == TripStage.completed ||
-        trip.stage == TripStage.cancelled) {
+    // الرحلة انتهت بأي شكل، فالـ OTP المحفوظ مالوش لازمة
+    if (const {
+      TripStage.completed,
+      TripStage.failed,
+      TripStage.cancelled,
+    }.contains(trip.stage)) {
       CacheManager.clearTripData(trip.id);
     }
   }
 
-  bool _isWaitingConfirmation(DeliveryTripModel trip) =>
-      trip.stage == TripStage.collected || trip.stage == TripStage.arrived;
+  /// مستنيين طرف تاني يأكد: المغسلة (استلام أو تسليم للمندوب) أو العميل
+  bool _isWaitingConfirmation(DeliveryTripModel trip) => const {
+    TripStage.collected,
+    TripStage.awaitingHandover,
+    TripStage.arrived,
+  }.contains(trip.stage);
 
   void _updatePolling(DeliveryTripModel trip) {
     if (_isWaitingConfirmation(trip)) {
@@ -225,13 +214,6 @@ class ActiveTripCubit extends Cubit<ActiveTripState> {
         return null;
       },
     );
-  }
-
-  Future<void> markPickedFromLaundry() async {
-    final trip = state.trip;
-    if (trip == null) return;
-    await CacheManager.setPickedFromLaundry(trip.id);
-    if (!isClosed) emit(state.copyWith(pickedFromLaundry: true));
   }
 
   @override

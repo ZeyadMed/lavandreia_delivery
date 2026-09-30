@@ -360,7 +360,6 @@
   "add_clothes_photos_first": "Add at least one photo of the clothes",
   "slide_clothes_collected": "Slide to confirm collection",
   "slide_arrived": "Slide when you arrive",
-  "received_from_laundry": "I've collected the clothes",
   "otp_code": "Confirmation code",
   "otp_not_available": "Code unavailable, pull down to refresh",
   "show_otp_to_laundry": "Show this code to the laundry so they confirm receiving the clothes",
@@ -375,5 +374,9 @@
   "no_transactions": "No transactions",
   "no_transactions_hint": "Your trip fees will show up here once added to your wallet",
   "trip_fee": "Trip fee",
-  "withdrawal": "Withdrawal"
+  "withdrawal": "Withdrawal",
+  "trip_failed": "Failed",
+  "trip_failed_hint": "This trip was marked as failed (customer unavailable or wrong address), nothing else is needed",
+  "show_otp_to_laundry_handover": "Show this code to the laundry so they confirm handing over the clothes",
+  "waiting_laundry_handover": "Waiting for the laundry to confirm the handover, then you can head to the customer"
 }

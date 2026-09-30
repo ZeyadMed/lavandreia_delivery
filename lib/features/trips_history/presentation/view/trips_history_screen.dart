@@ -16,18 +16,20 @@ import 'package:lavanderia_delivery/features/trips/presentation/view/widget/trip
 import 'package:lavanderia_delivery/features/trips_history/presentation/logic/my_trips_cubit.dart';
 
 /// فلتر الشاشة، بيتطبق على اللي اتحمل لأن الـ API مفيهوش فلتر بالحالة
-enum TripsFilter { active, completed, cancelled }
+enum TripsFilter { active, completed, failed, cancelled }
 
 extension on TripsFilter {
   String get labelKey => switch (this) {
     TripsFilter.active => 'trip_active',
     TripsFilter.completed => 'trip_completed',
+    TripsFilter.failed => 'trip_failed',
     TripsFilter.cancelled => 'trip_cancelled',
   };
 
   bool matches(DeliveryTripModel trip) => switch (this) {
     TripsFilter.active => trip.isActive,
     TripsFilter.completed => trip.stage == TripStage.completed,
+    TripsFilter.failed => trip.stage == TripStage.failed,
     TripsFilter.cancelled => trip.stage == TripStage.cancelled,
   };
 }
@@ -358,6 +360,11 @@ class TripStageBadge extends StatelessWidget {
         HomeColors.lightGreen,
         HomeColors.green,
         'trip_completed',
+      ),
+      TripStage.failed => (
+        const Color(0xffFDECEC),
+        HomeColors.red,
+        'trip_failed',
       ),
       TripStage.cancelled => (
         HomeColors.cardGrey,
