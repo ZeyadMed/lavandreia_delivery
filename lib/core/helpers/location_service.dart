@@ -50,7 +50,9 @@ class LocationService {
 
   /// بيتأكد إن الـ GPS شغال والصلاحية متاخدة، وبيطلبها لو لسه
   /// أي حاجة فيهم ممكن تعلق لو الplugin مش متسطب صح، فكلها بتايم أوت
-  Future<LocationStatus> _ensurePermission() async {
+  /// [request] بـ false للحاجات اللي بتشتغل لوحدها في الخلفية (زي إرسال
+  /// موقع المندوب كل شوية)، عشان سؤال الصلاحية مايطلعش فجأة
+  Future<LocationStatus> _ensurePermission({bool request = true}) async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled()
           .timeout(const Duration(seconds: 5));
@@ -60,7 +62,7 @@ class LocationService {
         const Duration(seconds: 5),
       );
 
-      if (permission == LocationPermission.denied) {
+      if (permission == LocationPermission.denied && request) {
         // هنا بالظبط بيظهر للـ يوزر سؤال الصلاحية بتاع النظام
         // من غير تايم أوت لأن اليوزر ممكن ياخد وقته في الرد
         permission = await Geolocator.requestPermission();
@@ -107,8 +109,12 @@ class LocationService {
 
   /// الإحداثيات بس من غير تحويل لعنوان، أسرع بكتير
   /// بتتبعت مع الرحلات المتاحة وطلب الرحلة عشان السيرفر يحسب المسافة والنطاق
-  Future<LocationResult> getCurrentPosition() async {
-    final permissionStatus = await _ensurePermission();
+  Future<LocationResult> getCurrentPosition({
+    bool requestPermission = true,
+  }) async {
+    final permissionStatus = await _ensurePermission(
+      request: requestPermission,
+    );
     if (permissionStatus != LocationStatus.success) {
       return LocationResult(status: permissionStatus);
     }

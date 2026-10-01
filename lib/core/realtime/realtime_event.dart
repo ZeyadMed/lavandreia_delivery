@@ -1,63 +1,79 @@
-/// حدث جاي من السيرفر، سواء من SignalR أو من push (FCM) لما SignalR مش متوصل.
-///
-/// أسامي الأحداث والـ payload لسه مش متوثقة من الباك، فبنقرا المفاتيح
-/// المعتادة ونسيب الـ data كلها متاحة للي محتاج حاجة زيادة
+import 'package:lavanderia_delivery/features/trips/models/delivery_trip_model.dart';
+import 'package:lavanderia_delivery/features/trips/models/order_status.dart';
+import 'package:lavanderia_delivery/features/trips/models/trip_request_model.dart';
+
+/// حدث جاي من hub الطلبات (SignalR). كل حدث ليه payload واحد هو الـ DTO كامل،
+/// والأحداث بتتعامل كإشارة نعمل بيها refetch، مش المصدر الوحيد للحالة
 class RealtimeEvent {
   final String name;
   final Map<String, dynamic> data;
 
   const RealtimeEvent({required this.name, this.data = const {}});
 
-  /// TripRequestResolved: المغسلة اختارت مندوب للرحلة (إحنا أو غيرنا)
-  static const String tripRequestResolved = 'TripRequestResolved';
-
-  /// أي تغيير في حالة رحلة أو طلب: تأكيد الـ OTP، التسليم، إلخ
-  static const String tripUpdated = 'TripUpdated';
-  static const String orderUpdated = 'OrderUpdated';
-
-  /// رحلة جديدة بقت متاحة في النطاق (لو الباك وفّره)
+  /// DeliveryTripDto: رحلة بقت متاحة في نطاق 10 كم من آخر موقع بعتناه
   static const String newTripAvailable = 'NewTripAvailable';
 
-  /// كل الأسامي اللي بنسمع عليها في الـ hub، اللي مش بيتبعت منها مابيأثرش
+  /// DeliveryTripRequestDto: المغسلة وافقت أو رفضت طلبنا (أو اختارت مندوب تاني)
+  static const String tripRequestResolved = 'TripRequestResolved';
+
+  /// OrderDto: أي تغيير في طلب لينا (أو كان لينا) رحلة عليه. الـ id هنا رقم الطلب،
+  /// والرحلات اللي جواه مافيهاش الحقول اللي للمندوب بس، فلازم refetch للرحلة
+  static const String orderUpdated = 'OrderUpdated';
+
+  /// مش من السيرفر: بيتبعت بعد reconnect أو رجوع التطبيق من الخلفية، لأن الأحداث
+  /// اللي فاتت وإحنا مش متوصلين مابتتعادش، فكل شاشة بتجيب حالتها من جديد
+  static const String resync = 'Resync';
+
+  /// الأحداث اللي السيرفر بيبعتها للمندوب
   static const List<String> hubMethods = [
-    tripRequestResolved,
-    tripUpdated,
-    orderUpdated,
     newTripAvailable,
-    'TripAvailable',
-    'TripCreated',
-    'PickupConfirmed',
-    'DropoffConfirmed',
-    'TripCompleted',
-    'ReceiveNotification',
-    'NotificationReceived',
+    tripRequestResolved,
+    orderUpdated,
   ];
 
-  bool get isTripRequestResolved =>
-      _sameName(tripRequestResolved) || data['type'] == tripRequestResolved;
+  bool get isNewTrip => name == newTripAvailable;
 
-  bool get isNewTrip =>
-      _sameName(newTripAvailable) ||
-      _sameName('TripAvailable') ||
-      _sameName('TripCreated');
+  bool get isTripRequestResolved => name == tripRequestResolved;
 
-  int? get tripId => _int(data['tripId'] ?? data['deliveryTripId']);
+  bool get isOrderUpdated => name == orderUpdated;
 
-  int? get orderId => _int(data['orderId']);
+  bool get isResync => name == resync;
 
-  /// في TripRequestResolved: هل الطلب بتاعنا هو اللي اتقبل
+  /// الرحلة الجديدة في NewTripAvailable
+  DeliveryTripModel? get trip =>
+      isNewTrip && data.isNotEmpty ? DeliveryTripModel.fromJson(data) : null;
+
+  /// رد المغسلة في TripRequestResolved
+  TripRequestModel? get request => isTripRequestResolved && data.isNotEmpty
+      ? TripRequestModel.fromJson(data)
+      : null;
+
+  int? get tripId => switch (name) {
+    newTripAvailable => _int(data['id']),
+    tripRequestResolved => _int(data['deliveryTripId']),
+    _ => null,
+  };
+
+  int? get orderId => switch (name) {
+    orderUpdated => _int(data['id']),
+    newTripAvailable => _int(data['orderId']),
+    _ => null,
+  };
+
+  /// حالة الطلب الجديدة في OrderUpdated
+  OrderStatus? get orderStatus => isOrderUpdated
+      ? OrderStatus.tryParseName(data['status']?.toString())
+      : null;
+
+  /// في TripRequestResolved: هل طلبنا هو اللي اتقبل
   bool? get isApproved {
-    final raw = data['approved'] ?? data['isApproved'] ?? data['status'];
-    if (raw is bool) return raw;
-    if (raw is String) {
-      final value = raw.toLowerCase();
-      if (value == 'approved' || value == 'true') return true;
-      if (value == 'rejected' || value == 'false') return false;
-    }
-    return null;
+    if (!isTripRequestResolved) return null;
+    return switch (request?.status) {
+      TripRequestStatus.approved => true,
+      TripRequestStatus.rejected => false,
+      _ => null,
+    };
   }
-
-  bool _sameName(String other) => name.toLowerCase() == other.toLowerCase();
 
   static int? _int(dynamic value) {
     if (value is int) return value;

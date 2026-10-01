@@ -70,8 +70,17 @@ abstract interface class Endpoints {
   /// POST لما المندوب يوصل باب العميل في رحلة التسليم، وبيرجع OTP للعميل
   static String arriveTrip(int tripId) => 'api/driver/trips/$tripId/arrive';
 
+  /// GET رحلة واحدة من رحلاتنا، فيها الحقول اللي للمندوب بس (otpCode, contactPhoneNumber)
+  static String tripDetails(int tripId) => 'api/driver/trips/$tripId';
+
+  /// GET الرحلة الشغالة دلوقتي، ومابتبقاش موجودة بعد ما الرحلة تتقفل (isClosed)
+  static const String currentTrip = 'api/driver/trips/current';
+
   /// PUT بـ { isAvailable } بيفتح أو يقفل استقبال الرحلات
   static const String driverAvailability = 'api/driver/availability';
+
+  /// PUT بـ { latitude, longitude }، ومن غيره في آخر 15 دقيقة مابيوصلناش NewTripAvailable
+  static const String driverLocation = 'api/driver/location';
 
   // ****************************** Wallet ********************************
   /// GET رصيد محفظة المندوب
@@ -81,8 +90,8 @@ abstract interface class Endpoints {
   static const String walletTransactions = 'api/driver/wallet/transactions';
 
   // ****************************** Realtime ********************************
-  // TODO: اسم الـ hub لسه ماوصلناش من الباك، كل المسارات اللي جربناها بترجع 401
-  static const String realtimeHub = 'hubs/notifications';
+  /// hub واحد للتلات تطبيقات، والسيرفر بيبعت لكل مستخدم أحداثه بس من الـ JWT
+  static const String realtimeHub = 'hubs/orders';
 
   /// اند بوينتس مفتوحة بتتنادى قبل ما يبقى فيه جلسة، فمابنحطش عليها توكن
   /// والـ 401 منها معناه بيانات غلط مش جلسة منتهية

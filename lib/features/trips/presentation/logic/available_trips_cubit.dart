@@ -31,10 +31,40 @@ class AvailableTripsCubit extends GenericPaginationCubit<DeliveryTripModel> {
     this._locationService,
     RealtimeService realtime,
   ) {
-    _subscription = realtime.events.listen((event) {
-      // رحلة جديدة نزلت، أو المغسلة اختارت مندوب فالرحلة خرجت من المتاح
-      if (event.isNewTrip || event.isTripRequestResolved) refresh();
-    });
+    _subscription = realtime.events.listen(_onRealtimeEvent);
+  }
+
+  void _onRealtimeEvent(RealtimeEvent event) {
+    if (isClosed) return;
+    if (event.isNewTrip) return _insertTrip(event.trip);
+    if (event.isTripRequestResolved) return _removeTrip(event.tripId);
+    // ممكن رحلات تكون نزلت أو اتاخدت وإحنا مش متوصلين
+    if (event.isResync) refresh();
+  }
+
+  /// الـ payload هو الـ DTO كامل وفيه المسافة من آخر موقع بعتناه،
+  /// فبنحطها فوق على طول من غير ريكوست، لو في نفس التاب
+  void _insertTrip(DeliveryTripModel? trip) {
+    if (trip == null || trip.id == 0 || trip.type != _type) return;
+    emit(
+      state.copyWith(
+        items: [
+          _markRequested(trip),
+          ...state.items.where((item) => item.id != trip.id),
+        ],
+      ),
+    );
+  }
+
+  /// المغسلة ردت على طلبنا: يا اتقبلنا يا اختارت حد تاني، والرحلة مابقتش متاحة
+  void _removeTrip(int? tripId) {
+    if (tripId == null) return;
+    _requestedTripIds.remove(tripId);
+    emit(
+      state.copyWith(
+        items: state.items.where((item) => item.id != tripId).toList(),
+      ),
+    );
   }
 
   TripType _type = TripType.pickup;

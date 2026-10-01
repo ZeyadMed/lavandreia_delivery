@@ -26,6 +26,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>نستخدم موقعك طول ما أنت متاح لاستقبال الرحلات، حتى والتطبيق في الخلفية، عشان توصلك الرحلات القريبة.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>نستخدم موقعك لعرض الرحلات القريبة منك وإرساله مع طلب الرحلة.</string>
 	<key>NSCameraUsageDescription</key>
@@ -40,6 +42,7 @@
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>location</string>
 		<string>remote-notification</string>
 	</array>
 	<key>UIApplicationSceneManifest</key>

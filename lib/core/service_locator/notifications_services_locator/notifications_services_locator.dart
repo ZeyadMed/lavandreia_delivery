@@ -8,7 +8,7 @@ class NotificationsServicesLocator {
       () => NotificationsDataSourceImpl(getIt()),
     );
     getIt.registerFactory<NotificationsCubit>(
-      () => NotificationsCubit(getIt()),
+      () => NotificationsCubit(getIt(), getIt()),
     );
   }
 }

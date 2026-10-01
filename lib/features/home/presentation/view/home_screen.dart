@@ -8,7 +8,9 @@ import 'package:lavanderia_delivery/core/bloc/base_bloc.dart';
 import 'package:lavanderia_delivery/core/cache_manager/cache_manager.dart';
 import 'package:lavanderia_delivery/core/common_widget/custom_error_message.dart';
 import 'package:lavanderia_delivery/core/common_widget/custom_success_message.dart';
+import 'package:lavanderia_delivery/core/helpers/background_location_permission.dart';
 import 'package:lavanderia_delivery/core/helpers/location_service.dart';
+import 'package:lavanderia_delivery/core/realtime/driver_location_reporter.dart';
 import 'package:lavanderia_delivery/core/router/app_router.dart';
 import 'package:lavanderia_delivery/core/service_locator/service_locator.dart';
 import 'package:lavanderia_delivery/core/style/app_colors.dart';
@@ -48,6 +50,13 @@ class _HomeView extends StatelessWidget {
     }
   }
 
+  /// بعد الصلاحيات بنشغّل الإرسال تاني، عشان يبدأ لو كان مستني صلاحية
+  /// الموقع، ويتظبط يرجع لوحده بعد الريستارت لو "طول الوقت" اتدت
+  Future<void> _ensureBackgroundLocation(BuildContext context) async {
+    await BackgroundLocationPermission.request(context);
+    await getIt<DriverLocationReporter>().start();
+  }
+
   Future<void> _openTrip(BuildContext context, DeliveryTripModel trip) async {
     final tripsCubit = context.read<AvailableTripsCubit>();
     final requested = await showTripDetailsBottomSheet(
@@ -82,12 +91,28 @@ class _HomeView extends StatelessWidget {
 
     return MultiBlocListener(
       listeners: [
-        // أول ما التوفر يتفتح (أو يتقرا من البروفايل) بنجيب الرحلات المتاحة
+        // أول ما التوفر يتفتح (أو يتقرا من البروفايل) بنجيب الرحلات المتاحة،
+        // وبنطلب صلاحيات إرسال الموقع في الخلفية
         BlocListener<HomeCubit, HomeState>(
           listenWhen: (previous, current) =>
               previous.isAvailable != current.isAvailable,
           listener: (context, state) {
-            if (state.isAvailable) tripsCubit.refresh();
+            if (!state.isAvailable) return;
+            tripsCubit.refresh();
+            _ensureBackgroundLocation(context);
+          },
+        ),
+        // رحلة جديدة نزلت في النطاق (AvailableTripsCubit بيضيفها لليستة)،
+        // وبتظهر popup لو المندوب فاضي والهوم هي اللي قدامه، مش فوق شاشة
+        // رحلة أو sheet تانية
+        BlocListener<HomeCubit, HomeState>(
+          listenWhen: (previous, current) =>
+              previous.newTripTick != current.newTripTick,
+          listener: (context, state) {
+            final trip = state.newTrip;
+            if (trip == null) return;
+            final isOnTop = ModalRoute.of(context)?.isCurrent ?? true;
+            if (state.activeTrip == null && isOnTop) _openTrip(context, trip);
           },
         ),
         // رد المغسلة على طلب رحلة

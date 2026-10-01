@@ -36,6 +36,12 @@ abstract interface class TripsDataSource {
     required int pageSize,
   });
 
+  /// رحلة واحدة من رحلاتنا بكل تفاصيلها (الـ OTP ورقم اللي هيسلّم)
+  Future<Either<Failure, DeliveryTripModel>> getTripDetails(int tripId);
+
+  /// الرحلة الشغالة، أو null لو مفيش
+  Future<Either<Failure, DeliveryTripModel?>> getCurrentTrip();
+
   Future<Either<Failure, TripOtpModel>> collect({
     required int tripId,
     required List<File> photos,
@@ -44,6 +50,11 @@ abstract interface class TripsDataSource {
   Future<Either<Failure, TripOtpModel>> arrive(int tripId);
 
   Future<Either<Failure, void>> setAvailability(bool isAvailable);
+
+  Future<Either<Failure, void>> updateLocation({
+    required double latitude,
+    required double longitude,
+  });
 }
 
 class TripsDataSourceImpl implements TripsDataSource {
@@ -133,6 +144,31 @@ class TripsDataSourceImpl implements TripsDataSource {
   }
 
   @override
+  Future<Either<Failure, DeliveryTripModel>> getTripDetails(int tripId) {
+    return _genericDataSource.fetchResult<DeliveryTripModel>(
+      endpoint: Endpoints.tripDetails(tripId),
+      fromJson: DeliveryTripModel.fromJson,
+    );
+  }
+
+  @override
+  Future<Either<Failure, DeliveryTripModel?>> getCurrentTrip() async {
+    final result = await _genericDataSource.fetchResult<DeliveryTripModel?>(
+      endpoint: Endpoints.currentTrip,
+      // لو مفيش رحلة الـ data بترجع null، فبيوصلنا الريسبونس كله
+      fromJson: (json) => json.containsKey('data') && json['data'] == null
+          ? null
+          : DeliveryTripModel.fromJson(json),
+    );
+    return result.fold(
+      // ممكن الباك يرجع 404 لما مايبقاش فيه رحلة شغالة
+      (failure) =>
+          failure.statusCode == 404 ? const Right(null) : Left(failure),
+      (trip) => Right(trip == null || trip.id == 0 ? null : trip),
+    );
+  }
+
+  @override
   Future<Either<Failure, TripOtpModel>> collect({
     required int tripId,
     required List<File> photos,
@@ -158,6 +194,18 @@ class TripsDataSourceImpl implements TripsDataSource {
     final result = await _genericDataSource.updateData<Null>(
       endpoint: Endpoints.driverAvailability,
       data: {'isAvailable': isAvailable},
+    );
+    return result.fold((failure) => Left(failure), (_) => const Right(null));
+  }
+
+  @override
+  Future<Either<Failure, void>> updateLocation({
+    required double latitude,
+    required double longitude,
+  }) async {
+    final result = await _genericDataSource.updateData<Null>(
+      endpoint: Endpoints.driverLocation,
+      data: {'latitude': latitude, 'longitude': longitude},
     );
     return result.fold((failure) => Left(failure), (_) => const Right(null));
   }

@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:lavanderia_delivery/core/bloc/genaric_pagination.dart';
 import 'package:lavanderia_delivery/core/http/either.dart';
 import 'package:lavanderia_delivery/core/http/failure.dart';
+import 'package:lavanderia_delivery/core/realtime/realtime_event.dart';
+import 'package:lavanderia_delivery/core/realtime/realtime_service.dart';
 import 'package:lavanderia_delivery/features/notifications/data/notifications_data_source.dart';
 import 'package:lavanderia_delivery/features/notifications/models/notification_model.dart';
 
@@ -8,13 +12,21 @@ import 'package:lavanderia_delivery/features/notifications/models/notification_m
 ///
 /// القراية والمسح بيتطبقوا على الليستة فوراً وبعدين بيتبعتوا، ولو الريكوست
 /// فشل بنرجّع الليستة زي ما كانت. الدوال دي بترجع رسالة الخطأ (أو null)
-/// عشان الشاشة تعرضها، بدل ما نغيّر الـ status ونشيل الليستة من قدام المندوب
+/// عشان الشاشة تعرضها، بدل ما نغيّر الـ status ونشيل الليستة من قدام المندوب.
+///
+/// كل حدث realtime بيتحفظ إشعار عند الباك، وبعد الـ resync ممكن يكون فاتنا
+/// إشعارات، فبنعمل refresh عشان الجديد يظهر من غير سحب
 class NotificationsCubit extends GenericPaginationCubit<NotificationModel> {
   final NotificationsDataSource _dataSource;
+  StreamSubscription<RealtimeEvent>? _subscription;
 
   static const int _pageSize = 20;
 
-  NotificationsCubit(this._dataSource);
+  NotificationsCubit(this._dataSource, RealtimeService realtime) {
+    _subscription = realtime.events.listen((_) {
+      if (!isClosed) refresh();
+    });
+  }
 
   @override
   Future<Either<Failure, dynamic>> loadPage(int page) {
@@ -68,5 +80,11 @@ class NotificationsCubit extends GenericPaginationCubit<NotificationModel> {
       if (!isClosed) emit(state.copyWith(items: previous));
       return failure.message;
     }, (_) => null);
+  }
+
+  @override
+  Future<void> close() {
+    _subscription?.cancel();
+    return super.close();
   }
 }

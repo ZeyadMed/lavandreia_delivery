@@ -1,9 +1,17 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- الـ INTERNET كانت في الـ debug بس، فالـ release ماكانش بيكلم السيرفر -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- موقع المندوب بيتبعت مع طلب الرحلة والرحلات المتاحة بتتفلتر بيه -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- إرسال موقع المندوب طول ما هو متاح، حتى والتطبيق مقفول (LocationBackgroundService) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <!-- "السماح طول الوقت": من غيرها Android 14 مابيبدأش الخدمة لوحده بعد الريستارت -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+    <!-- عشان نطلب إيقاف توفير البطارية، وإلا أجهزة زي Xiaomi بتقفل الخدمة -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
     <!-- صور الهدوم وقت الاستلام من العميل -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
@@ -33,6 +41,12 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- خدمة الموقع بتاعة flutter_background_service، Android 14 بيطلب نوعها -->
+        <service
+            android:name="id.flutter.flutter_background_service.BackgroundService"
+            android:foregroundServiceType="location"
+            android:exported="false"
+            tools:replace="android:exported" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

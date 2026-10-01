@@ -70,6 +70,18 @@ class TokenRefreshService {
   }
 
   Future<RefreshResult> _performRefresh() async {
+    // خدمة إرسال الموقع (isolate تاني) ممكن تكون جددت قبلنا، ولو بعتنا
+    // الـ refresh token القديم الباك هيعتبره محروق ويقفل الجلسة
+    final staleAccessToken = await CacheManager.getAccessToken();
+    await CacheManager.reload();
+    final currentAccessToken = await CacheManager.getAccessToken();
+    if (currentAccessToken != null &&
+        currentAccessToken.isNotEmpty &&
+        currentAccessToken != staleAccessToken) {
+      logger('Access token already refreshed elsewhere');
+      return RefreshSuccess(currentAccessToken);
+    }
+
     final refreshToken = CacheManager.getRefreshTokenSync();
     if (refreshToken == null || refreshToken.isEmpty) {
       loggerWarn('Refresh skipped: no refresh token stored');

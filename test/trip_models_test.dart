@@ -149,6 +149,15 @@ void main() {
       expect(dropoff.isActive, isTrue);
     });
 
+    test('dropoff collected at the laundry keeps waiting for the handover', () {
+      final dropoff = trip(
+        'Dropoff',
+        'AwaitingDropoffCollection',
+      ).copyWith(otpCode: '1234', rawStatus: 'Collected');
+      expect(dropoff.stage, TripStage.awaitingHandover);
+      expect(dropoff.otpCode, '1234');
+    });
+
     test(
       'AwaitingDropoffCollection in the status field is not "collected"',
       () {
@@ -292,26 +301,139 @@ void main() {
   });
 
   group('RealtimeEvent', () {
-    test('recognises TripRequestResolved from hub name or push type', () {
-      const fromHub = RealtimeEvent(
+    test('TripRequestResolved reads DeliveryTripRequestDto', () {
+      const approved = RealtimeEvent(
         name: 'TripRequestResolved',
-        data: {'tripId': 3, 'approved': true},
+        data: {'id': 9, 'deliveryTripId': 3, 'status': 'Approved'},
       );
-      const fromPush = RealtimeEvent(
+      const rejected = RealtimeEvent(
         name: 'TripRequestResolved',
-        data: {'tripId': '3', 'status': 'Rejected'},
+        data: {'id': 10, 'deliveryTripId': 4, 'status': 'Rejected'},
       );
 
-      expect(fromHub.isTripRequestResolved, isTrue);
-      expect(fromHub.isApproved, isTrue);
-      expect(fromPush.tripId, 3);
-      expect(fromPush.isApproved, isFalse);
+      expect(approved.isTripRequestResolved, isTrue);
+      expect(approved.tripId, 3);
+      expect(approved.isApproved, isTrue);
+      expect(rejected.tripId, 4);
+      expect(rejected.isApproved, isFalse);
     });
 
     test('unknown approval stays null', () {
       const event = RealtimeEvent(name: 'TripRequestResolved');
       expect(event.isApproved, isNull);
       expect(event.isNewTrip, isFalse);
+    });
+
+    test('NewTripAvailable carries the full trip', () {
+      const event = RealtimeEvent(
+        name: 'NewTripAvailable',
+        data: {
+          'id': 5,
+          'orderId': 11,
+          'type': 'Dropoff',
+          'fee': 20,
+          'distanceKm': 2.5,
+        },
+      );
+
+      expect(event.tripId, 5);
+      expect(event.orderId, 11);
+      expect(event.trip?.type, TripType.dropoff);
+      expect(event.trip?.distanceKm, 2.5);
+    });
+
+    test('OrderUpdated id is the order id', () {
+      const event = RealtimeEvent(
+        name: 'OrderUpdated',
+        data: {'id': 11, 'status': 'OutForDelivery'},
+      );
+
+      expect(event.orderId, 11);
+      expect(event.tripId, isNull);
+      expect(event.orderStatus, OrderStatus.outForDelivery);
+    });
+  });
+
+  group('DeliveryTripModel stage from confirmation flags', () {
+    DeliveryTripModel trip(Map<String, dynamic> json) =>
+        DeliveryTripModel.fromJson({'id': 1, ...json});
+
+    test('pickup waiting for laundry OTP is collected', () {
+      final t = trip({
+        'type': 'Pickup',
+        'orderStatus': 'AwaitingPickup',
+        'isAwaitingConfirmation': true,
+        'awaitingConfirmationBy': 'Laundry',
+      });
+      expect(t.stage, TripStage.collected);
+    });
+
+    test('pickup confirmed by laundry is completed', () {
+      final t = trip({
+        'type': 'Pickup',
+        'orderStatus': 'AwaitingPickup',
+        'isConfirmed': true,
+      });
+      expect(t.stage, TripStage.completed);
+    });
+
+    test('dropoff waiting for laundry handover', () {
+      final t = trip({
+        'type': 'Dropoff',
+        'orderStatus': 'AwaitingDropoffCollection',
+        'isAwaitingConfirmation': true,
+        'awaitingConfirmationBy': 'Laundry',
+      });
+      expect(t.stage, TripStage.awaitingHandover);
+    });
+
+    test('dropoff handed over goes to the customer', () {
+      final t = trip({
+        'type': 'Dropoff',
+        'orderStatus': 'OutForDelivery',
+        'isHandedOver': true,
+      });
+      expect(t.isHandedOver, isTrue);
+      expect(t.stage, TripStage.assigned);
+    });
+
+    test('dropoff collected at the laundry shows its OTP', () {
+      final t = trip({
+        'type': 'Dropoff',
+        'orderStatus': 'AwaitingDropoffCollection',
+        'isAwaitingConfirmation': true,
+        'awaitingConfirmationBy': 'Laundry',
+        'otpCode': '4321',
+      });
+      expect(t.stage, TripStage.awaitingHandover);
+      expect(t.otpCode, '4321');
+    });
+
+    test('dropoff after the handover goes to the customer without an OTP', () {
+      final t = trip({'type': 'Dropoff', 'orderStatus': 'OutForDelivery'});
+      expect(t.otpCode, isNull);
+      expect(t.stage, TripStage.assigned);
+    });
+
+    test('dropoff waiting for customer OTP is arrived', () {
+      final t = trip({
+        'type': 'Dropoff',
+        'orderStatus': 'OutForDelivery',
+        'isHandedOver': true,
+        'isAwaitingConfirmation': true,
+        'awaitingConfirmationBy': 'Customer',
+      });
+      expect(t.stage, TripStage.arrived);
+    });
+
+    test('failed dropoff wins over a pending OTP', () {
+      final t = trip({
+        'type': 'Dropoff',
+        'orderStatus': 'DeliveryFailed',
+        'isAwaitingConfirmation': true,
+        'awaitingConfirmationBy': 'Customer',
+      });
+      expect(t.stage, TripStage.failed);
     });
   });
 }

@@ -9,13 +9,16 @@ import 'package:lavanderia_delivery/core/cache_manager/cache_manager.dart';
 import 'package:lavanderia_delivery/core/realtime/realtime_service.dart';
 import 'package:lavanderia_delivery/core/router/app_router.dart';
 import 'package:lavanderia_delivery/core/service_locator/service_locator.dart';
+import 'package:lavanderia_delivery/features/trips/data/trips_data_source.dart';
 import 'package:lavanderia_delivery/main.dart';
 
 import '../helpers/logger.dart';
 
-/// إشعارات FCM: بتظهر local notification والتطبيق مفتوح، وبتعدّي الـ data
-/// على RealtimeService عشان الشاشات تعمل refresh لو SignalR مش متوصل،
-/// والضغط على إشعار فيه رحلة بيفتح شاشة الرحلة الحالية
+/// إشعارات FCM. كل حدث SignalR بيتبعت push كمان، فوالتطبيق مفتوح والـ hub
+/// متوصل مابنعرضش الإشعار عشان مايبقاش تنبيهين لنفس الحاجة.
+///
+/// الـ push دلوقتي فيه title و body بس من غير data، فالضغط عليه بيفتح
+/// الرحلة الشغالة لو فيه، وإلا بيفتح التطبيق بس
 class MessagingConfig {
   static final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -113,7 +116,10 @@ class MessagingConfig {
 
   static Future<void> _onForegroundMessage(RemoteMessage event) async {
     log('Foreground message received');
-    getIt<RealtimeService>().dispatchPush(event.data);
+    final realtime = getIt<RealtimeService>();
+    // نفس الحدث وصل (أو هيوصل) من SignalR واتعرض جوه التطبيق
+    if (realtime.isConnected) return;
+    realtime.dispatchPush(event.data);
 
     final RemoteNotification? notification = event.notification;
     if (notification == null) return;
@@ -156,29 +162,38 @@ class MessagingConfig {
       return;
     }
     // بعد أول frame عشان الـ navigator يكون جاهز
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
-        _route(data);
+        await _route(data);
       } catch (e) {
         log('Error processing notification data: $e');
       }
     });
   }
 
-  /// أي إشعار ليه علاقة برحلة بيفتح شاشة الرحلة، والباقي بيفتح التطبيق بس
-  static void _route(Map<String, dynamic> data) {
-    final context = navigatorKey.currentContext;
-    if (context == null) {
+  /// لو الـ data فيها رحلة بنفتحها، وإلا بنسأل الباك على الرحلة الشغالة
+  /// (الـ push لسه مافيهوش data). الإشعارات تاب في البوتوم ناف مش route،
+  /// فلو مفيش رحلة بنسيب التطبيق مكانه وقايمتها بتتحدث من الـ resync
+  static Future<void> _route(Map<String, dynamic> data) async {
+    if (navigatorKey.currentContext == null) {
       loggerError('Navigator not ready for notification: $data');
       return;
     }
-    final tripId = int.tryParse(
-      '${data['tripId'] ?? data['deliveryTripId'] ?? ''}',
+    // ممكن يكون إشعار قديم والجلسة خلصت
+    final token = await CacheManager.getAccessToken();
+    if (token == null || token.isEmpty) return;
+
+    var tripId = int.tryParse(
+      '${data['deliveryTripId'] ?? data['tripId'] ?? ''}',
     );
-    final type = '${data['type'] ?? data['route'] ?? ''}'.toLowerCase();
-    if (tripId != null || type.contains('trip')) {
-      context.push(AppRouter.activeTrip, extra: tripId);
+    if (tripId == null) {
+      final current = await getIt<TripsDataSource>().getCurrentTrip();
+      tripId = current.fold((_) => null, (trip) => trip?.id);
     }
+
+    final context = navigatorKey.currentContext;
+    if (tripId == null || context == null || !context.mounted) return;
+    context.push(AppRouter.activeTrip, extra: tripId);
   }
 
   static void dispose() {

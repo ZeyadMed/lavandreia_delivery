@@ -100,6 +100,7 @@ class _TripBody extends StatelessWidget {
             (TripType.pickup, TripStage.collected) => _pickupCollected(trip),
             (TripType.pickup, _) => _pickupAssigned(context, trip),
             (TripType.dropoff, TripStage.awaitingHandover) => _dropoffAtLaundry(
+              context,
               trip,
             ),
             (TripType.dropoff, TripStage.arrived) => _dropoffArrived(trip),
@@ -154,8 +155,10 @@ class _TripBody extends StatelessWidget {
   }
 
   /// رحلة التسليم: رايح المغسلة ياخد الهدوم (AwaitingDropoffCollection).
-  /// المغسلة هي اللي بتأكد التسليم، ومن غير كده arrive بيترفض
-  List<Widget> _dropoffAtLaundry(DeliveryTripModel trip) {
+  /// collect بيطلّع OTP المغسلة بتدخّله في confirm-handover، ومن غير كده
+  /// المغسلة بتفضل مستنيانا و arrive بيترفض
+  List<Widget> _dropoffAtLaundry(BuildContext context, DeliveryTripModel trip) {
+    final cubit = context.read<ActiveTripCubit>();
     return [
       _PointActionsCard(
         emoji: '🧺',
@@ -164,12 +167,26 @@ class _TripBody extends StatelessWidget {
         fallbackName: 'laundry'.tr(),
       ),
       Gap(16.h),
-      // TODO: لسه مش متأكدين الـ OTP ده بيرجع في الرحلة ولا من collect
-      if (trip.otpCode != null) ...[
+      if (trip.otpCode == null) ...[
+        _PhotosPicker(
+          photos: state.photos,
+          hintKey: 'laundry_photos_hint',
+          enabled: !state.isSubmitting,
+          onAdd: (files) => cubit.addPhotos(files),
+          onRemove: cubit.removePhoto,
+        ),
+        Gap(20.h),
+        _SlideToConfirm(
+          text: 'slide_received_from_laundry'.tr(),
+          enabled: state.photos.isNotEmpty && !state.isSubmitting,
+          isLoading: state.isSubmitting,
+          onSubmit: () => _run(context, cubit.collect()),
+        ),
+      ] else ...[
         _OtpCard(code: trip.otpCode, hintKey: 'show_otp_to_laundry_handover'),
         Gap(16.h),
+        const _WaitingCard(textKey: 'waiting_laundry_handover'),
       ],
-      const _WaitingCard(textKey: 'waiting_laundry_handover'),
     ];
   }
 
@@ -551,12 +568,14 @@ class _ActionButton extends StatelessWidget {
 /// صور الهدوم قبل الاستلام، بتتبعت مع collect وبتتعرض للمغسلة وقت المطابقة
 class _PhotosPicker extends StatelessWidget {
   final List<File> photos;
+  final String hintKey;
   final bool enabled;
   final ValueChanged<List<File>> onAdd;
   final ValueChanged<int> onRemove;
 
   const _PhotosPicker({
     required this.photos,
+    this.hintKey = 'clothes_photos_hint',
     required this.enabled,
     required this.onAdd,
     required this.onRemove,
@@ -630,7 +649,7 @@ class _PhotosPicker extends StatelessWidget {
           ),
           Gap(4.h),
           Text(
-            'clothes_photos_hint'.tr(),
+            hintKey.tr(),
             style: TextStyles.boldStyle(
               12,
               color: AppColors.greyColor,

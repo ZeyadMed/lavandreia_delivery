@@ -19,6 +19,19 @@ enum TripType {
   }
 }
 
+/// مين اللي لازم يأكد الـ OTP دلوقتي (awaitingConfirmationBy)
+enum ConfirmationParty {
+  laundry,
+  customer;
+
+  static ConfirmationParty? parse(dynamic value) =>
+      switch (value?.toString().toLowerCase()) {
+        'laundry' => laundry,
+        'customer' => customer,
+        _ => null,
+      };
+}
+
 /// المرحلة اللي الرحلة فيها من ناحية المندوب.
 /// بتتحدد من حالة الطلب الأول لأنها متوثقة في الـ swagger، ولو مش كفاية
 /// (زي AwaitingPickup اللي بتفضل طول رحلة الاستلام) من حالة الرحلة والـ OTP
@@ -86,6 +99,19 @@ class DeliveryTripModel extends Equatable {
   final DateTime? createdAt;
   final DateTime? completedAt;
 
+  /// فيه OTP مستني حد يأكده، و[awaitingConfirmationBy] مين
+  final bool isAwaitingConfirmation;
+  final ConfirmationParty? awaitingConfirmationBy;
+
+  /// الطرف الأخير أكد الـ OTP: المغسلة في الاستلام أو العميل في التسليم
+  final bool isConfirmed;
+
+  /// Dropoff: المغسلة أكدت إنها سلّمتنا الهدوم
+  final bool isHandedOver;
+
+  /// الرحلة اتقفلت خالص (مثلاً بعد ما المغسلة تأكد رجوع هدوم تسليم فاشل)
+  final bool isClosed;
+
   const DeliveryTripModel({
     required this.id,
     required this.type,
@@ -101,6 +127,11 @@ class DeliveryTripModel extends Equatable {
     this.isRequestedByMe = false,
     this.createdAt,
     this.completedAt,
+    this.isAwaitingConfirmation = false,
+    this.awaitingConfirmationBy,
+    this.isConfirmed = false,
+    this.isHandedOver = false,
+    this.isClosed = false,
   });
 
   factory DeliveryTripModel.fromJson(Map<String, dynamic> json) {
@@ -193,6 +224,13 @@ class DeliveryTripModel extends Equatable {
           json.pick(['isRequested', 'isRequestedByMe', 'hasRequested']) == true,
       createdAt: json.pickDate(['createdAt', 'createdAtUtc']),
       completedAt: json.pickDate(['completedAt', 'completedAtUtc']),
+      isAwaitingConfirmation: json.pick(['isAwaitingConfirmation']) == true,
+      awaitingConfirmationBy: ConfirmationParty.parse(
+        json.pick(['awaitingConfirmationBy']),
+      ),
+      isConfirmed: json.pick(['isConfirmed']) == true,
+      isHandedOver: json.pick(['isHandedOver']) == true,
+      isClosed: json.pick(['isClosed']) == true,
     );
   }
 
@@ -206,7 +244,28 @@ class DeliveryTripModel extends Equatable {
 
   TripPoint get to => type == TripType.pickup ? laundry : customer;
 
-  TripStage get stage => _stageFromOrder() ?? _stageFromTripStatus();
+  TripStage get stage =>
+      _stageFromFlags() ?? _stageFromOrder() ?? _stageFromTripStatus();
+
+  /// من حقول الرحلة اللي الباك بيرجعها، ولو مش كفاية بنكمل من حالة الطلب
+  TripStage? _stageFromFlags() {
+    if (isConfirmed) return TripStage.completed;
+    // فشل المحاولة بيسبق أي OTP كان مستني
+    if (orderStatus ==
+        (type == TripType.pickup
+            ? OrderStatus.pickupFailed
+            : OrderStatus.deliveryFailed)) {
+      return TripStage.failed;
+    }
+    if (!isAwaitingConfirmation) return null;
+    return switch ((type, awaitingConfirmationBy)) {
+      (TripType.pickup, ConfirmationParty.laundry) => TripStage.collected,
+      (TripType.dropoff, ConfirmationParty.laundry) =>
+        TripStage.awaitingHandover,
+      (TripType.dropoff, ConfirmationParty.customer) => TripStage.arrived,
+      _ => null,
+    };
+  }
 
   /// null لو حالة الطلب مش كفاية تحدد المرحلة
   TripStage? _stageFromOrder() {
@@ -307,6 +366,11 @@ class DeliveryTripModel extends Equatable {
       isRequestedByMe: isRequestedByMe ?? this.isRequestedByMe,
       createdAt: createdAt,
       completedAt: completedAt,
+      isAwaitingConfirmation: isAwaitingConfirmation,
+      awaitingConfirmationBy: awaitingConfirmationBy,
+      isConfirmed: isConfirmed,
+      isHandedOver: isHandedOver,
+      isClosed: isClosed,
     );
   }
 
@@ -326,5 +390,10 @@ class DeliveryTripModel extends Equatable {
     isRequestedByMe,
     createdAt,
     completedAt,
+    isAwaitingConfirmation,
+    awaitingConfirmationBy,
+    isConfirmed,
+    isHandedOver,
+    isClosed,
   ];
 }

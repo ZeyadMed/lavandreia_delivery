@@ -52,19 +52,20 @@ class ActiveTripState extends Equatable {
 /// الرحلة الشغالة وخطواتها: الاستلام من العميل بالصور، أو الوصول لباب العميل،
 /// وبعدين استنى تأكيد الـ OTP من المغسلة أو العميل.
 ///
-/// مفيش GET لرحلة واحدة، فبندور عليها في رحلاتنا. والتأكيد بيوصل من الـ
-/// realtime، ومعاه polling خفيف وقت الانتظار لحد ما أسامي الأحداث تتأكد
+/// التأكيد بيوصل كـ OrderUpdated فبنجيب الرحلة من جديد (الـ payload مافيهوش
+/// الـ OTP)، والـ polling بيشتغل بس وقت الانتظار لو الـ hub مش متوصل
 class ActiveTripCubit extends Cubit<ActiveTripState> {
   final TripsDataSource _dataSource;
+  final RealtimeService _realtime;
   StreamSubscription<RealtimeEvent>? _subscription;
   Timer? _pollTimer;
 
   static const int maxPhotos = 10;
   static const Duration _pollInterval = Duration(seconds: 30);
 
-  ActiveTripCubit(this._dataSource, RealtimeService realtime)
+  ActiveTripCubit(this._dataSource, this._realtime)
     : super(const ActiveTripState()) {
-    _subscription = realtime.events.listen(_onRealtimeEvent);
+    _subscription = _realtime.events.listen(_onRealtimeEvent);
   }
 
   int? _tripId;
@@ -74,7 +75,10 @@ class ActiveTripCubit extends Cubit<ActiveTripState> {
     _tripId = tripId ?? _tripId;
     if (!silent) emit(state.copyWith(status: Status.loading));
 
-    final result = await _dataSource.getMyTrips(pageIndex: 1, pageSize: 50);
+    final id = _tripId;
+    final result = id != null
+        ? await _dataSource.getTripDetails(id)
+        : await _dataSource.getCurrentTrip();
     if (isClosed) return;
     result.fold(
       (failure) {
@@ -87,11 +91,7 @@ class ActiveTripCubit extends Cubit<ActiveTripState> {
           );
         }
       },
-      (page) {
-        final trips = page.items;
-        final trip = _tripId != null
-            ? trips.where((t) => t.id == _tripId).firstOrNull
-            : trips.where((t) => t.isActive).firstOrNull;
+      (trip) {
         if (trip == null) {
           emit(
             state.copyWith(
@@ -102,14 +102,28 @@ class ActiveTripCubit extends Cubit<ActiveTripState> {
           return;
         }
         _tripId = trip.id;
-        _emitTrip(_withCachedOtp(trip));
+        final withOtp = _withCachedOtp(trip);
+        _emitTrip(withOtp);
+        // الرحلة الحالية مابترجعش الـ OTP، وكود تسليم المغسلة مابيرجعش من أي أكشن
+        // فبنجيبه من تفاصيل الرحلة (والمرة الجاية _tripId موجود فمفيش لوب)
+        if (id == null &&
+            withOtp.otpCode == null &&
+            _isWaitingConfirmation(withOtp)) {
+          load(silent: true);
+        }
       },
     );
   }
 
   /// الـ OTP مش مضمون يرجع في الليستة، فبنكمله من اللي اتحفظ وقت collect/arrive
+  /// ولو مفيش كود مستني تأكيد يبقى المحفوظ اتأكد خلاص (زي كود المغسلة بعد
+  /// confirm-handover) فبنمسحه بدل ما يتعرض للعميل
   DeliveryTripModel _withCachedOtp(DeliveryTripModel trip) {
     if (trip.otpCode != null) return trip;
+    if (!trip.isAwaitingConfirmation) {
+      CacheManager.clearTripData(trip.id);
+      return trip;
+    }
     final cached = CacheManager.getTripOtp(trip.id);
     return cached == null ? trip : trip.copyWith(otpCode: cached);
   }
@@ -136,7 +150,10 @@ class ActiveTripCubit extends Cubit<ActiveTripState> {
 
   void _updatePolling(DeliveryTripModel trip) {
     if (_isWaitingConfirmation(trip)) {
-      _pollTimer ??= Timer.periodic(_pollInterval, (_) => load(silent: true));
+      // لو الـ hub متوصل التايمر بيعدي من غير ريكوست
+      _pollTimer ??= Timer.periodic(_pollInterval, (_) {
+        if (!_realtime.isConnected) load(silent: true);
+      });
     } else {
       _pollTimer?.cancel();
       _pollTimer = null;
@@ -147,9 +164,9 @@ class ActiveTripCubit extends Cubit<ActiveTripState> {
     final trip = state.trip;
     if (trip == null) return;
     final isOurs =
-        (event.tripId == null && event.orderId == null) ||
-        event.tripId == trip.id ||
-        (event.orderId != null && event.orderId == trip.orderId);
+        event.isResync ||
+        (event.isOrderUpdated && event.orderId == trip.orderId) ||
+        (event.isTripRequestResolved && event.tripId == trip.id);
     if (isOurs) load(silent: true);
   }
 
@@ -163,7 +180,9 @@ class ActiveTripCubit extends Cubit<ActiveTripState> {
     emit(state.copyWith(photos: photos));
   }
 
-  /// رحلة الاستلام: بيرفع صور الهدوم وبياخد الـ OTP اللي هيتوري للمغسلة
+  /// بيرفع صور الهدوم وبياخد الـ OTP اللي هيتوري للمغسلة: في الاستلام من
+  /// العميل، أو في التسليم وقت ما المندوب ياخد الهدوم من المغسلة.
+  /// الصور إثبات حالة الهدوم وقت الاستلام فهي إجبارية في الاتنين
   Future<String?> collect() async {
     final trip = state.trip;
     if (trip == null || state.isSubmitting) return null;

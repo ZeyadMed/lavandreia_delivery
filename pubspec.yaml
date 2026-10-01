@@ -60,6 +60,7 @@ dependencies:
   video_player: ^2.14.0
   flutter_widget_from_html_core: ^0.17.4
   signalr_netcore: ^1.4.4
+  flutter_background_service: ^5.1.0
 
 dev_dependencies:
   flutter_test:

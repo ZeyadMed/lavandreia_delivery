@@ -11,6 +11,7 @@ class CacheManager {
   static const _userEmailKey = 'userEmail';
   static const _userRoleKey = 'userRole';
   static const _isGuestModeKey = 'isGuestMode';
+  static const _locationSharingKey = 'locationSharing';
   static SharedPreferences? _sharedPreferences;
 
   // Singleton instance
@@ -177,6 +178,17 @@ class CacheManager {
     await sharedPreferences.remove(_userRoleKey);
     log('User data cleared');
   }
+
+  /// خدمة إرسال الموقع بتشتغل في isolate تاني وبتجدد التوكنز هناك، فقبل ما
+  /// نقرا التوكنز في أي ناحية لازم نقرا اللي اتكتب من الناحية التانية
+  static Future<void> reload() => sharedPreferences.reload();
+
+  /// المندوب فاتح التوفر، وخدمة إرسال الموقع بتقرا ده عشان تعرف تكمل ولا تقف
+  static Future<void> setLocationSharing(bool enabled) =>
+      sharedPreferences.setBool(_locationSharingKey, enabled);
+
+  static bool isLocationSharing() =>
+      sharedPreferences.getBool(_locationSharingKey) ?? false;
 
   static Future<void> saveFcmTokenToken(String fcmToken) async {
     await sharedPreferences.setString(_fcmToken, fcmToken);

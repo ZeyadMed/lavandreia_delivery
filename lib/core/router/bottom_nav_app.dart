@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:lavanderia_delivery/core/common_widget/custom_error_message.dart';
+import 'package:lavanderia_delivery/core/realtime/driver_location_reporter.dart';
 import 'package:lavanderia_delivery/core/realtime/realtime_service.dart';
 import 'package:lavanderia_delivery/core/service_locator/service_locator.dart';
 import 'package:lavanderia_delivery/core/style/app_colors.dart';
@@ -25,6 +26,7 @@ class _BottomNavAppState extends State<BottomNavApp>
   DateTime? _lastBackPressed;
   //final List<Widget?> _pages = List.filled(4, null);
   final Map<int, Widget> _cachedPages = {};
+  bool _wasInBackground = false;
 
   /// الترتيب: الرئيسية - الرحلات - الإشعارات - حسابي
   /// وفي العربي الصف بيتقلب لوحده فالرئيسية بتظهر على اليمين
@@ -64,8 +66,23 @@ class _BottomNavAppState extends State<BottomNavApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // النظام ممكن يقفل الـ socket والتطبيق في الخلفية
-    if (state == AppLifecycleState.resumed) getIt<RealtimeService>().start();
+    switch (state) {
+      case AppLifecycleState.resumed:
+        // النظام ممكن يقفل الـ socket والتطبيق في الخلفية
+        final realtime = getIt<RealtimeService>();
+        realtime.start();
+        // الأحداث اللي فاتت مابتتعادش فالشاشة المفتوحة بتجيب حالتها من جديد.
+        // بس لو كنا في الخلفية فعلاً، مش بعد dialog زي سؤال صلاحية الموقع
+        if (_wasInBackground) realtime.resync();
+        _wasInBackground = false;
+        // لو صلاحية الموقع اتدت وإحنا برة، أو النظام قفل الخدمة
+        getIt<DriverLocationReporter>().resume();
+      case AppLifecycleState.paused:
+        // إرسال الموقع بيكمل في الخلفية، مابيقفش غير مع قفل التوفر
+        _wasInBackground = true;
+      default:
+        break;
+    }
   }
 
   @override
@@ -184,66 +201,84 @@ class _BottomNavAppState extends State<BottomNavApp>
       child: Scaffold(
         backgroundColor: scaffoldColor,
         body: IndexedStack(index: _selectedIndex, children: children),
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(
-            color: navBarColor,
-            border: Border(
-              top: BorderSide(
-                color: isDarkMode ? Colors.white12 : const Color(0xFFE8ECF3),
-              ),
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const _RealtimeStatusBar(),
+            _navBar(
+              navBarColor: navBarColor,
+              isDarkMode: isDarkMode,
+              selectedItemColor: selectedItemColor,
+              unselectedItemColor: unselectedItemColor,
             ),
-          ),
-          padding: EdgeInsets.only(bottom: 0, left: 4.w, right: 4.w),
-          child: SafeArea(
-            top: false,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(_items.length, (index) {
-                final isSelected = _selectedIndex == index;
-                final item = _items[index];
+          ],
+        ),
+      ),
+    );
+  }
 
-                return Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => _onItemTapped(index),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 10.h),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            isSelected
-                                ? item.selectedIcon
-                                : item.unselectedIcon,
-                            size: 24.sp,
-                            color: isSelected
-                                ? selectedItemColor
-                                : unselectedItemColor,
-                          ),
-                          SizedBox(height: 4.h),
-                          Text(
-                            item.labelKey.tr(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: TextStyles.blackBold14.copyWith(
-                              fontSize: 11.sp,
-                              color: isSelected
-                                  ? selectedItemColor
-                                  : unselectedItemColor,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }),
-            ),
+  Widget _navBar({
+    required Color navBarColor,
+    required bool isDarkMode,
+    required Color selectedItemColor,
+    required Color unselectedItemColor,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: navBarColor,
+        border: Border(
+          top: BorderSide(
+            color: isDarkMode ? Colors.white12 : const Color(0xFFE8ECF3),
           ),
+        ),
+      ),
+      padding: EdgeInsets.only(bottom: 0, left: 4.w, right: 4.w),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(_items.length, (index) {
+            final isSelected = _selectedIndex == index;
+            final item = _items[index];
+
+            return Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _onItemTapped(index),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10.h),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isSelected ? item.selectedIcon : item.unselectedIcon,
+                        size: 24.sp,
+                        color: isSelected
+                            ? selectedItemColor
+                            : unselectedItemColor,
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        item.labelKey.tr(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyles.blackBold14.copyWith(
+                          fontSize: 11.sp,
+                          color: isSelected
+                              ? selectedItemColor
+                              : unselectedItemColor,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
         ),
       ),
     );
@@ -260,4 +295,53 @@ class _BottomNavItemData {
     required this.unselectedIcon,
     required this.selectedIcon,
   });
+}
+
+/// شريط رفيع فوق البوتوم ناف بيظهر لما اتصال الأحداث اللحظية يقع ويحاول يرجع
+class _RealtimeStatusBar extends StatelessWidget {
+  const _RealtimeStatusBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<RealtimeConnection>(
+      valueListenable: getIt<RealtimeService>().connection,
+      builder: (context, connection, _) {
+        final visible = connection == RealtimeConnection.reconnecting;
+        return AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          child: !visible
+              ? const SizedBox(width: double.infinity)
+              : Container(
+                  width: double.infinity,
+                  color: AppColors.primaryColor,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4.h),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 12.r,
+                          height: 12.r,
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 1.5,
+                            color: AppColors.whiteColor,
+                          ),
+                        ),
+                        SizedBox(width: 8.w),
+                        Text(
+                          'realtime_reconnecting'.tr(),
+                          style: TextStyles.blackBold14.copyWith(
+                            fontSize: 12.sp,
+                            color: AppColors.whiteColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+        );
+      },
+    );
+  }
 }

@@ -1,4 +1,7 @@
 import 'package:lavanderia_delivery/core/cache_manager/cache_manager.dart';
+import 'package:lavanderia_delivery/core/realtime/driver_location_reporter.dart';
+import 'package:lavanderia_delivery/core/realtime/realtime_service.dart';
+import 'package:lavanderia_delivery/core/service_locator/service_locator.dart';
 
 /// مكان واحد لكل حاجة تخص جلسة المستخدم: مسح بياناته عند الخروج
 /// أو انتهاء الجلسة، ومنع التحويل للوجين أكتر من مرة.
@@ -10,7 +13,14 @@ abstract final class Session {
   static Future<void> clear() async {
     await CacheManager.clearTokens();
     await CacheManager.clearUserData();
-    
+    // سواء خروج أو الجلسة انتهت من الانترسبتور، مابقاش فيه مندوب نستقبل
+    // أحداثه أو نبعت موقعه
+    if (getIt.isRegistered<DriverLocationReporter>()) {
+      await getIt<DriverLocationReporter>().stop();
+    }
+    if (getIt.isRegistered<RealtimeService>()) {
+      await getIt<RealtimeService>().stop();
+    }
   }
 
   /// لما كذا ريكوست يقعوا بـ 401 مع بعض، أول واحد بس هو اللي

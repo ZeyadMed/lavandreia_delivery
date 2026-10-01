@@ -1,4 +1,5 @@
 import 'package:get_it/get_it.dart';
+import 'package:lavanderia_delivery/core/realtime/driver_location_reporter.dart';
 import 'package:lavanderia_delivery/features/home/presentation/logic/home_cubit.dart';
 import 'package:lavanderia_delivery/features/trips/data/trips_data_source.dart';
 import 'package:lavanderia_delivery/features/trips/presentation/logic/active_trip_cubit.dart';
@@ -13,8 +14,12 @@ class TripsServicesLocator {
     getIt.registerLazySingleton<TripsDataSource>(
       () => TripsDataSourceImpl(getIt()),
     );
+    // singleton عشان الإرسال يفضل واحد مهما الشاشات اتفتحت واتقفلت
+    getIt.registerLazySingleton<DriverLocationReporter>(
+      () => DriverLocationReporter(getIt()),
+    );
     getIt.registerFactory<HomeCubit>(
-      () => HomeCubit(getIt(), getIt(), getIt()),
+      () => HomeCubit(getIt(), getIt(), getIt(), getIt()),
     );
     getIt.registerFactory<AvailableTripsCubit>(
       () => AvailableTripsCubit(getIt(), getIt(), getIt()),

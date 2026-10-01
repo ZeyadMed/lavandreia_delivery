@@ -358,8 +358,10 @@
   "clothes_photos": "Clothes photos",
   "clothes_photos_hint": "Photograph the clothes before collecting them, the laundry uses them when matching the order",
   "add_clothes_photos_first": "Add at least one photo of the clothes",
+  "laundry_photos_hint": "Photograph the clothes as you receive them from the laundry, they are proof if anything is missing",
   "slide_clothes_collected": "Slide to confirm collection",
   "slide_arrived": "Slide when you arrive",
+  "slide_received_from_laundry": "Slide when you receive the clothes from the laundry",
   "otp_code": "Confirmation code",
   "otp_not_available": "Code unavailable, pull down to refresh",
   "show_otp_to_laundry": "Show this code to the laundry so they confirm receiving the clothes",
@@ -378,5 +380,10 @@
   "trip_failed": "Failed",
   "trip_failed_hint": "This trip was marked as failed (customer unavailable or wrong address), nothing else is needed",
   "show_otp_to_laundry_handover": "Show this code to the laundry so they confirm handing over the clothes",
-  "waiting_laundry_handover": "Waiting for the laundry to confirm the handover, then you can head to the customer"
+  "waiting_laundry_handover": "Waiting for the laundry to confirm the handover, then you can head to the customer",
+  "realtime_reconnecting": "Reconnecting…",
+  "background_location_title": "Stay available even when the app is closed",
+  "background_location_body": "To receive nearby trips while you're available, the app needs to send your location even when it's closed or in the background. It stops as soon as you turn availability off.\n\nOn the next screen choose \"Allow all the time\", then allow ignoring battery optimization so your phone doesn't stop the service.",
+  "not_now": "Not now",
+  "allow": "Allow"
 }
