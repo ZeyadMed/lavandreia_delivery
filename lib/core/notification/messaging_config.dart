@@ -88,9 +88,7 @@ class MessagingConfig {
 
       // TODO: مفيش endpoint لتحديث الـ deviceToken عند الباك، بيتبعت مع اللوجين بس
       messaging.onTokenRefresh.listen(CacheManager.saveFcmTokenToken);
-      messaging.getToken().then((token) async {
-        if (token != null) await CacheManager.saveFcmTokenToken(token);
-      });
+      CacheManager.fetchAndSaveFcmToken();
 
       FirebaseMessaging.onMessage.listen(_onForegroundMessage);
 

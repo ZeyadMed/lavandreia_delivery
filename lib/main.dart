@@ -45,7 +45,6 @@ Future<void> main() async {
   }
 
   await CacheManager.init();
-  await CacheManager.fetchAndSaveFcmToken();
   EasyLocalization.ensureInitialized();
   await DI.getItInit();
   // بعد الـ DI لأنه بيعدّي الإشعارات على RealtimeService
