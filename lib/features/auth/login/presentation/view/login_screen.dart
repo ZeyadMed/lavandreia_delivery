@@ -9,6 +9,7 @@ import 'package:lavanderia_delivery/core/bloc/base_bloc.dart';
 import 'package:lavanderia_delivery/core/common_widget/label.dart';
 import 'package:lavanderia_delivery/core/extensions/context_extension.dart';
 import 'package:lavanderia_delivery/core/helpers/validators.dart';
+import 'package:lavanderia_delivery/core/http/failure.dart';
 import 'package:lavanderia_delivery/core/router/app_router.dart';
 import 'package:lavanderia_delivery/core/service_locator/service_locator.dart';
 import 'package:lavanderia_delivery/core/style/assets.dart';
@@ -20,6 +21,7 @@ import 'package:lavanderia_delivery/core/widget/flexiable_image.dart';
 import 'package:lavanderia_delivery/features/auth/login/presentation/logic/login_bloc.dart';
 import 'package:lavanderia_delivery/features/auth/login/presentation/logic/login_event.dart';
 import 'package:lavanderia_delivery/features/auth/models/auth_model.dart';
+import 'package:lavanderia_delivery/features/auth/otp/models/otp_args.dart';
 
 import '../../../../../core/style/app_colors.dart';
 
@@ -72,6 +74,21 @@ class _LoginScreenState extends State<LoginScreen> {
               context.go(AppRouter.initialRoot);
             }
             if (state.isFailure) {
+              final failure = state.failure;
+              // 409: الرقم مش متفعل والباك بعت كود جديد، فبنوديه يفعله
+              if (failure is VerifyOTPFailure) {
+                context.showSuccessMessage(state.errorMessage ?? '');
+                context.push(
+                  AppRouter.verifyOtp,
+                  extra: OtpArgs(
+                    phoneNumber:
+                        failure.data?['phoneNumber']?.toString() ??
+                        completePhone,
+                    purpose: OtpPurpose.login,
+                  ),
+                );
+                return;
+              }
               context.showErrorMessage(state.errorMessage ?? '');
             }
           },

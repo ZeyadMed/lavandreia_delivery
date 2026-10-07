@@ -68,8 +68,12 @@ class SyncAppFailure extends Failure {
       : super(message, statusCode: statusCode);
 }
 
+/// الـ 409. في اللوجين معناه إن الرقم مش متفعل، والباك بيبعت في data
+/// الرقم اللي اتبعتله كود التحقق
 class VerifyOTPFailure extends Failure {
-  VerifyOTPFailure({required String message, int? statusCode})
+  final Map<String, dynamic>? data;
+
+  VerifyOTPFailure({required String message, int? statusCode, this.data})
       : super(message, statusCode: statusCode);
 }
 

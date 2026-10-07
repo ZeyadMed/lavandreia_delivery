@@ -322,3 +322,49 @@ class ProfileLogoutButton extends StatelessWidget {
     );
   }
 }
+
+/// زرار حذف الحساب، نص أحمر من غير خلفية عشان مايتلخبطش مع الخروج
+class ProfileDeleteAccountButton extends StatelessWidget {
+  final bool isLoading;
+  final VoidCallback onTap;
+
+  const ProfileDeleteAccountButton({
+    super.key,
+    required this.isLoading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 48.h,
+      child: Center(
+        child: isLoading
+            ? SizedBox(
+                width: 20.r,
+                height: 20.r,
+                child: const CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: HomeColors.red,
+                ),
+              )
+            : TextButton.icon(
+                onPressed: onTap,
+                icon: Icon(
+                  Icons.delete_outline_rounded,
+                  size: 20.sp,
+                  color: HomeColors.red,
+                ),
+                label: Text(
+                  'delete_account'.tr(),
+                  style: TextStyles.boldStyle(
+                    14,
+                    color: HomeColors.red,
+                    weight: FontWeight.w500,
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+}

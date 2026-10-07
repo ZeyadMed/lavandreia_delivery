@@ -8,6 +8,7 @@ import 'package:lavanderia_delivery/features/profile/models/update_profile_reque
 abstract interface class ProfileDataSource {
   Future<Either<Failure, DriverProfileModel>> getProfile();
   Future<Either<Failure, void>> updateProfile(UpdateProfileRequest request);
+  Future<Either<Failure, void>> deleteAccount();
 }
 
 class ProfileDataSourceImpl implements ProfileDataSource {
@@ -29,6 +30,14 @@ class ProfileDataSourceImpl implements ProfileDataSource {
     final result = await _genericDataSource.updateData<Null>(
       endpoint: Endpoints.driverProfile,
       data: request.toJson(),
+    );
+    return result.fold((failure) => Left(failure), (_) => const Right(null));
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteAccount() async {
+    final result = await _genericDataSource.deleteData<Null>(
+      endpoint: Endpoints.deleteAccount,
     );
     return result.fold((failure) => Left(failure), (_) => const Right(null));
   }

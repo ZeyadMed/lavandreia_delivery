@@ -12,8 +12,12 @@ abstract interface class Endpoints {
   static const String cities = 'api/auth/cities';
   static const String verifyOtp = '/api/auth/driver/verify-phone';
   static const String login = '/api/auth/driver/login';
-  static const String forgetPassword = 'forgot/password';
-  static const String resetPasssword = 'forgot/reset-password';
+
+  /// بتبعت كود لرقم المستخدم، بتاخد { phoneNumber, accountType }
+  static const String forgotPassword = 'api/auth/forgot-password';
+
+  /// بتغير كلمة المرور بالكود، بتاخد { phoneNumber, accountType, code, newPassword }
+  static const String resetPassword = 'api/auth/reset-password';
   static const String confirmPassword = '';
   static const String resentOtp = 'resend-otp';
   static const String forgetResendOtp = 'forgot/resend-otp';
@@ -37,12 +41,16 @@ abstract interface class Endpoints {
   /// بيرجع { content, updatedAt } والـ content عبارة عن HTML
   static const String privacyPolicy = 'api/auth/privacy-policy';
 
+  /// DELETE بيحذف الحساب نهائياً
+  static const String deleteAccount = 'api/driver/account';
+
   // ****************************** Notifications ********************************
   /// GET بيرجع إشعارات المندوب بالصفحات (PageIndex, PageSize)، و DELETE بيمسحهم كلهم
   static const String driverNotifications = 'api/driver/notifications';
 
   /// PUT بيعلّم كل الإشعارات كمقروءة
-  static const String readAllNotifications = 'api/driver/notifications/read-all';
+  static const String readAllNotifications =
+      'api/driver/notifications/read-all';
 
   /// DELETE بيمسح إشعار واحد
   static String notification(int id) => 'api/driver/notifications/$id';
@@ -99,6 +107,8 @@ abstract interface class Endpoints {
     return path.contains(login) ||
         path.contains(verifyPhone) ||
         path.contains(register) ||
-        path.contains(cities);
+        path.contains(cities) ||
+        path.contains(forgotPassword) ||
+        path.contains(resetPassword);
   }
 }

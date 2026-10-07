@@ -23,8 +23,13 @@ class LoginBloc extends Bloc<LoginEvent, BaseState<AuthModel>> {
     );
 
     result.fold(
+      // الـ failure نفسه بيتبعت عشان الشاشة تفرق الـ 409 (الرقم مش متفعل)
       (failure) => emit(
-        BaseState(status: Status.failure, errorMessage: failure.message),
+        BaseState(
+          status: Status.failure,
+          errorMessage: failure.message,
+          failure: failure,
+        ),
       ),
       (data) => emit(BaseState(status: Status.success, data: data)),
     );

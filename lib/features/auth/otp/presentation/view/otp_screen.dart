@@ -85,16 +85,6 @@ class _OtpScreenState extends State<OtpScreen> {
       return;
     }
 
-    // في نسيت كلمة المرور الكود بيتبعت مع كلمة المرور الجديدة في reset-password
-    // فمش بنفعل الرقم هنا، بس بنوديه شاشة التغيير ومعاه الرقم والكود
-    if (widget.purpose == OtpPurpose.forgetPassword) {
-      context.pushReplacement(
-        AppRouter.changePassword,
-        extra: ResetPasswordArgs(phoneNumber: widget.phoneNumber, code: code),
-      );
-      return;
-    }
-
     if (context.read<VerifyPhoneBloc>().state.isLoading) return;
 
     context.read<VerifyPhoneBloc>().add(
@@ -111,8 +101,14 @@ class _OtpScreenState extends State<OtpScreen> {
         body: BlocConsumer<VerifyPhoneBloc, BaseState<AuthModel>>(
           listener: (context, state) {
             if (state.isSuccess) {
-              // الرقم اتفعل بس الحساب لسه تحت مراجعة الإدارة
               context.showSuccessMessage(state.data?.message ?? '');
+              // التفعيل مابيرجعش توكنز، فجاي من اللوجين بنرجعه يسجل دخول تاني
+              // والباك هو اللي يقول الحساب اتقبل ولا لسه تحت المراجعة
+              if (widget.purpose == OtpPurpose.login) {
+                context.pop();
+                return;
+              }
+              // الرقم اتفعل بس الحساب لسه تحت مراجعة الإدارة
               context.go(AppRouter.accountUnderReview);
             }
             if (state.isFailure) {

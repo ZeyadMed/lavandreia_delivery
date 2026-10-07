@@ -522,9 +522,17 @@ final class BaseApiConsumer implements ApiConsumer {
               );
             }
             // Handle OTP failure for 409 status code
+            // بنرجع رسالة الباك والـ data عشان اللوجين يحوّل على الـ OTP بالرقم
             if (error.response?.statusCode == 409) {
               loggerWarn('VERIFYERROR');
-              return VerifyOTPFailure(message: 'خطأ في التحقق من الكود');
+              return VerifyOTPFailure(
+                message:
+                    _backendMessage(decoded) ?? 'خطأ في التحقق من الكود',
+                statusCode: 409,
+                data: decoded['data'] is Map<String, dynamic>
+                    ? decoded['data'] as Map<String, dynamic>
+                    : null,
+              );
             }
             if (decoded.containsKey('message')) {
               String message = decoded['message'];

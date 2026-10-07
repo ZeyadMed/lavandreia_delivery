@@ -11,6 +11,7 @@ import 'package:lavanderia_delivery/core/http/auth_interceptor.dart';
 import 'package:lavanderia_delivery/core/http/endpoints.dart';
 import 'package:lavanderia_delivery/core/http/token_refresh_service.dart';
 import 'package:lavanderia_delivery/core/realtime/realtime_service.dart';
+import 'package:lavanderia_delivery/core/service_locator/auth_sevices_locator/forget_password_services_locator.dart';
 import 'package:lavanderia_delivery/core/service_locator/auth_sevices_locator/login_services_locator.dart';
 import 'package:lavanderia_delivery/core/service_locator/auth_sevices_locator/logout_services_locator.dart';
 import 'package:lavanderia_delivery/core/service_locator/auth_sevices_locator/otp_services_locator.dart';
@@ -58,6 +59,7 @@ class SharedServiceLocator {
     await OtpServicesLocator.init(getIt: getIt);
     await LoginServicesLocator.init(getIt: getIt);
     await LogoutServicesLocator.init(getIt: getIt);
+    await ForgetPasswordServicesLocator.init(getIt: getIt);
     await ProfileServicesLocator.init(getIt: getIt);
     await NotificationsServicesLocator.init(getIt: getIt);
 

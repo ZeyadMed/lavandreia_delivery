@@ -6,6 +6,7 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lavanderia_delivery/core/bloc/base_bloc.dart';
 import 'package:lavanderia_delivery/core/common_widget/label.dart';
+import 'package:lavanderia_delivery/core/extensions/context_extension.dart';
 import 'package:lavanderia_delivery/core/router/app_router.dart';
 import 'package:lavanderia_delivery/core/service_locator/service_locator.dart';
 import 'package:lavanderia_delivery/core/style/app_colors.dart';
@@ -15,6 +16,7 @@ import 'package:lavanderia_delivery/features/auth/logout/presentation/logic/logo
 import 'package:lavanderia_delivery/features/auth/register/models/register_form_data.dart';
 import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_colors.dart';
 import 'package:lavanderia_delivery/features/profile/models/driver_profile_model.dart';
+import 'package:lavanderia_delivery/features/profile/presentation/logic/delete_account_cubit.dart';
 import 'package:lavanderia_delivery/features/profile/presentation/logic/profile_cubit.dart';
 import 'package:lavanderia_delivery/features/profile/presentation/view/widget/profile_widgets.dart';
 
@@ -40,12 +42,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return MultiBlocProvider(
       providers: [
         BlocProvider(create: (_) => getIt<LogoutBloc>()),
+        BlocProvider(create: (_) => getIt<DeleteAccountCubit>()),
         BlocProvider(create: (_) => getIt<ProfileCubit>()..getProfile()),
       ],
-      child: BlocListener<LogoutBloc, BaseState<void>>(
-        listener: (context, state) {
-          if (state.isSuccess) context.go(AppRouter.login);
-        },
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<LogoutBloc, BaseState<void>>(
+            listener: (context, state) {
+              if (state.isSuccess) context.go(AppRouter.login);
+            },
+          ),
+          BlocListener<DeleteAccountCubit, BaseState<void>>(
+            listener: (context, state) {
+              if (state.isSuccess) {
+                context.showSuccessMessage('account_deleted'.tr());
+                context.go(AppRouter.login);
+              }
+              if (state.isFailure) {
+                context.showErrorMessage(state.errorMessage ?? '');
+              }
+            },
+          ),
+        ],
         child: Scaffold(
           backgroundColor: AppColors.backgroundColor,
           body: BlocBuilder<ProfileCubit, BaseState<DriverProfileModel>>(
@@ -90,6 +108,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             isLoading: state.isLoading,
                             onTap: () => _confirmLogout(context),
                           ),
+                        ),
+                        Gap(8.h),
+                        BlocBuilder<DeleteAccountCubit, BaseState<void>>(
+                          builder: (context, state) =>
+                              ProfileDeleteAccountButton(
+                                isLoading: state.isLoading,
+                                onTap: () => _confirmDeleteAccount(context),
+                              ),
                         ),
                       ],
                     ),
@@ -170,16 +196,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   /// بنأكد قبل الخروج عشان مايخرجش بالغلط
   Future<void> _confirmLogout(BuildContext blocContext) async {
-    final shouldLogout = await showDialog<bool>(
-      context: blocContext,
+    final shouldLogout = await _confirm(
+      blocContext,
+      titleKey: 'logout',
+      messageKey: 'logout_confirm',
+      confirmKey: 'logout',
+    );
+
+    // الـ bloc بيبعت الـ refreshToken للباك ويمسح الكاش،
+    // والتوجيه للوجين بيحصل في الـ BlocListener
+    if (shouldLogout && blocContext.mounted) {
+      blocContext.read<LogoutBloc>().add(const LogoutEvent());
+    }
+  }
+
+  /// الحذف نهائي فلازم تأكيد صريح قبل ما نبعت الطلب
+  Future<void> _confirmDeleteAccount(BuildContext blocContext) async {
+    final shouldDelete = await _confirm(
+      blocContext,
+      titleKey: 'delete_account',
+      messageKey: 'delete_account_confirm',
+      confirmKey: 'delete_account',
+    );
+
+    // الكيوبت بيمسح الجلسة بعد الحذف، والتوجيه للوجين في الـ BlocListener
+    if (shouldDelete && blocContext.mounted) {
+      blocContext.read<DeleteAccountCubit>().deleteAccount();
+    }
+  }
+
+  /// دايلوج تأكيد زرار التأكيد فيه أحمر، بيرجع true لو المستخدم وافق
+  Future<bool> _confirm(
+    BuildContext context, {
+    required String titleKey,
+    required String messageKey,
+    required String confirmKey,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.whiteColor,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16.r),
         ),
-        title: Text('logout'.tr(), style: TextStyles.boldStyle(17)),
+        title: Text(titleKey.tr(), style: TextStyles.boldStyle(17)),
         content: Text(
-          'logout_confirm'.tr(),
+          messageKey.tr(),
           style: TextStyles.boldStyle(
             14,
             color: AppColors.greyColor,
@@ -197,19 +259,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(
-              'logout'.tr(),
+              confirmKey.tr(),
               style: TextStyles.boldStyle(14, color: HomeColors.red),
             ),
           ),
         ],
       ),
     );
-
-    // الـ bloc بيبعت الـ refreshToken للباك ويمسح الكاش،
-    // والتوجيه للوجين بيحصل في الـ BlocListener
-    if (shouldLogout == true && blocContext.mounted) {
-      blocContext.read<LogoutBloc>().add(const LogoutEvent());
-    }
+    return confirmed ?? false;
   }
 }
 
