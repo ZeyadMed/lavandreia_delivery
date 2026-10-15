@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lavanderia_delivery/core/realtime/realtime_event.dart';
+import 'package:lavanderia_delivery/features/trips/models/accrediting_laundry_model.dart';
 import 'package:lavanderia_delivery/features/trips/models/delivery_trip_model.dart';
+import 'package:lavanderia_delivery/features/trips/models/driver_accreditation.dart';
 import 'package:lavanderia_delivery/features/trips/models/order_status.dart';
 import 'package:lavanderia_delivery/features/trips/models/paged_model.dart';
 import 'package:lavanderia_delivery/features/trips/models/trip_otp_model.dart';
@@ -435,5 +437,146 @@ void main() {
       });
       expect(t.stage, TripStage.failed);
     });
+  });
+
+  group('Accreditation', () {
+    const laundries = [
+      {'laundryId': 1, 'laundryName': 'Clean Wave'},
+      {'laundryId': 2, 'laundryName': 'مغسلة النور'},
+    ];
+
+    test('DeliveryTripModel reads driverAccreditedBy', () {
+      final trip = DeliveryTripModel.fromJson({
+        'id': 1,
+        'type': 'Pickup',
+        'driverAccreditedBy': laundries,
+      });
+
+      expect(trip.driverAccreditedBy, const [
+        AccreditingLaundryModel(laundryId: 1, laundryName: 'Clean Wave'),
+        AccreditingLaundryModel(laundryId: 2, laundryName: 'مغسلة النور'),
+      ]);
+    });
+
+    test('missing, null or malformed driverAccreditedBy is an empty list', () {
+      for (final raw in [null, 'x', 3, <String, dynamic>{}]) {
+        final trip = DeliveryTripModel.fromJson({
+          'id': 1,
+          'driverAccreditedBy': raw,
+        });
+        expect(trip.driverAccreditedBy, isEmpty);
+      }
+      expect(DeliveryTripModel.fromJson({'id': 1}).driverAccreditedBy, isEmpty);
+      expect(
+        AccreditingLaundryModel.listFromJson([
+          'bad',
+          {'laundryId': 3},
+          {'laundryId': 4, 'laundryName': ' Fresh '},
+        ]),
+        const [AccreditingLaundryModel(laundryId: 4, laundryName: 'Fresh')],
+      );
+    });
+
+    test('copyWith keeps driverAccreditedBy', () {
+      final trip = DeliveryTripModel.fromJson({
+        'id': 1,
+        'driverAccreditedBy': laundries,
+      });
+      expect(trip.copyWith(otpCode: '1234').driverAccreditedBy, hasLength(2));
+    });
+
+    test('TripRequestModel reads driverAccreditedBy at the root', () {
+      final request = TripRequestModel.fromJson({
+        'id': 10,
+        'status': 'Pending',
+        'driverAccreditedBy': laundries,
+        'trip': {'id': 4, 'laundryName': 'clean  wave '},
+      });
+
+      expect(request.driverAccreditedBy, hasLength(2));
+      expect(request.trip?.driverAccreditedBy, isEmpty);
+      expect(request.isAccreditedByTripLaundry, isTrue);
+      expect(TripRequestModel.fromJson({'id': 1}).driverAccreditedBy, isEmpty);
+    });
+
+    test('TripRequestResolved carries driverAccreditedBy', () {
+      const event = RealtimeEvent(
+        name: 'TripRequestResolved',
+        data: {
+          'id': 9,
+          'deliveryTripId': 3,
+          'status': 'Approved',
+          'driverAccreditedBy': laundries,
+        },
+      );
+      expect(event.request?.driverAccreditedBy, hasLength(2));
+    });
+
+    test('trip laundry match ignores case and spaces, not empty names', () {
+      final list = AccreditingLaundryModel.listFromJson(laundries);
+
+      expect(list.includesLaundry('  CLEAN wave'), isTrue);
+      expect(list.includesLaundry('مغسلة النور'), isTrue);
+      expect(list.includesLaundry('Other'), isFalse);
+      expect(list.includesLaundry(''), isFalse);
+
+      final accredited = DeliveryTripModel.fromJson({
+        'id': 1,
+        'laundry': {'name': 'Clean Wave'},
+        'driverAccreditedBy': laundries,
+      });
+      final other = DeliveryTripModel.fromJson({
+        'id': 2,
+        'laundryName': 'Other',
+        'driverAccreditedBy': laundries,
+      });
+      expect(accredited.isAccreditedByTripLaundry, isTrue);
+      expect(other.isAccreditedByTripLaundry, isFalse);
+    });
+
+    test(
+      'resolveDriverAccreditation prefers current, then trip, then request',
+      () {
+        DeliveryTripModel trip(String name) => DeliveryTripModel.fromJson({
+          'id': 1,
+          'driverAccreditedBy': [
+            {'laundryId': 1, 'laundryName': name},
+          ],
+        });
+        final request = TripRequestModel.fromJson({
+          'id': 1,
+          'driverAccreditedBy': [
+            {'laundryId': 1, 'laundryName': 'request'},
+          ],
+        });
+        String? first(List<AccreditingLaundryModel> list) =>
+            list.firstOrNull?.laundryName;
+
+        expect(
+          first(
+            resolveDriverAccreditation(
+              currentTrip: trip('current'),
+              latestTrip: trip('latest'),
+              latestRequest: request,
+            ),
+          ),
+          'current',
+        );
+        expect(
+          first(
+            resolveDriverAccreditation(
+              latestTrip: trip('latest'),
+              latestRequest: request,
+            ),
+          ),
+          'latest',
+        );
+        expect(
+          first(resolveDriverAccreditation(latestRequest: request)),
+          'request',
+        );
+        expect(resolveDriverAccreditation(), isEmpty);
+      },
+    );
   });
 }

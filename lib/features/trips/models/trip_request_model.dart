@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:lavanderia_delivery/features/trips/models/accrediting_laundry_model.dart';
 import 'package:lavanderia_delivery/features/trips/models/delivery_trip_model.dart';
 import 'package:lavanderia_delivery/features/trips/models/json_reader.dart';
 
@@ -26,12 +27,16 @@ class TripRequestModel extends Equatable {
   final DeliveryTripModel? trip;
   final DateTime? createdAt;
 
+  /// المغاسل اللي معتمدانا، ودي اللي بنقارن بيها مش اللي جوه [trip]
+  final List<AccreditingLaundryModel> driverAccreditedBy;
+
   const TripRequestModel({
     required this.id,
     required this.tripId,
     required this.status,
     this.trip,
     this.createdAt,
+    this.driverAccreditedBy = const [],
   });
 
   factory TripRequestModel.fromJson(Map<String, dynamic> json) {
@@ -43,9 +48,19 @@ class TripRequestModel extends Equatable {
       status: TripRequestStatus.parse(json.pick(['status', 'requestStatus'])),
       trip: trip,
       createdAt: json.pickDate(['createdAt', 'requestedAt']),
+      driverAccreditedBy: AccreditingLaundryModel.listFromJson(
+        json.pick(['driverAccreditedBy']),
+      ),
     );
   }
 
   @override
-  List<Object?> get props => [id, tripId, status, trip, createdAt];
+  List<Object?> get props => [
+    id,
+    tripId,
+    status,
+    trip,
+    createdAt,
+    driverAccreditedBy,
+  ];
 }

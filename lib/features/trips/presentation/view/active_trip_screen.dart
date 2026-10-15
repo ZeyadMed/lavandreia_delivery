@@ -17,7 +17,9 @@ import 'package:lavanderia_delivery/core/theme/text_styles.dart';
 import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_colors.dart';
 import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_widgets.dart';
 import 'package:lavanderia_delivery/features/trips/models/delivery_trip_model.dart';
+import 'package:lavanderia_delivery/features/trips/models/driver_accreditation.dart';
 import 'package:lavanderia_delivery/features/trips/presentation/logic/active_trip_cubit.dart';
+import 'package:lavanderia_delivery/features/trips/presentation/view/widget/accreditation_widgets.dart';
 import 'package:lavanderia_delivery/features/trips/presentation/view/widget/trip_widgets.dart';
 import 'package:slide_to_act/slide_to_act.dart';
 
@@ -305,6 +307,13 @@ class _TripHeader extends StatelessWidget {
                           weight: FontWeight.w400,
                         ),
                       ),
+                      if (trip.isAccreditedByTripLaundry) ...[
+                        Gap(6.h),
+                        const AccreditedLaundryBadge(
+                          labelKey: 'accredited_at_laundry',
+                          onDark: true,
+                        ),
+                      ],
                     ],
                   ],
                 ),

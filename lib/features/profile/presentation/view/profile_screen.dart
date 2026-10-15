@@ -19,6 +19,9 @@ import 'package:lavanderia_delivery/features/profile/models/driver_profile_model
 import 'package:lavanderia_delivery/features/profile/presentation/logic/delete_account_cubit.dart';
 import 'package:lavanderia_delivery/features/profile/presentation/logic/profile_cubit.dart';
 import 'package:lavanderia_delivery/features/profile/presentation/view/widget/profile_widgets.dart';
+import 'package:lavanderia_delivery/features/trips/models/accrediting_laundry_model.dart';
+import 'package:lavanderia_delivery/features/trips/presentation/logic/driver_accreditation_cubit.dart';
+import 'package:lavanderia_delivery/features/trips/presentation/view/widget/accreditation_widgets.dart';
 
 /// شاشة حسابي: هيدر فيه بيانات المندوب، كارت المركبة، القايمة، وزرار الخروج
 class ProfileScreen extends StatefulWidget {
@@ -44,6 +47,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         BlocProvider(create: (_) => getIt<LogoutBloc>()),
         BlocProvider(create: (_) => getIt<DeleteAccountCubit>()),
         BlocProvider(create: (_) => getIt<ProfileCubit>()..getProfile()),
+        BlocProvider(create: (_) => getIt<DriverAccreditationCubit>()..load()),
       ],
       child: MultiBlocListener(
         listeners: [
@@ -101,6 +105,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         else
                           const Center(child: CircularProgressIndicator()),
                         Gap(16.h),
+                        // بيظهر بس لما نعرف، عشان لو الريكوست فشل مانقولش إننا مش معتمدين
+                        BlocBuilder<
+                          DriverAccreditationCubit,
+                          BaseState<List<AccreditingLaundryModel>>
+                        >(
+                          builder: (context, state) {
+                            final laundries = state.data;
+                            if (!state.isSuccess || laundries == null) {
+                              return const SizedBox.shrink();
+                            }
+                            return Padding(
+                              padding: EdgeInsets.only(bottom: 16.h),
+                              child: AccreditedByCard(laundries: laundries),
+                            );
+                          },
+                        ),
                         ProfileMenuCard(items: _menuItems(context, profile)),
                         Gap(16.h),
                         BlocBuilder<LogoutBloc, BaseState<void>>(

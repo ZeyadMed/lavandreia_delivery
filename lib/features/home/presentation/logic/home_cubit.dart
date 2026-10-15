@@ -6,8 +6,12 @@ import 'package:lavanderia_delivery/core/realtime/driver_location_reporter.dart'
 import 'package:lavanderia_delivery/core/realtime/realtime_event.dart';
 import 'package:lavanderia_delivery/core/realtime/realtime_service.dart';
 import 'package:lavanderia_delivery/features/profile/data/profile_data_source.dart';
+import 'package:lavanderia_delivery/core/http/either.dart';
 import 'package:lavanderia_delivery/features/trips/data/trips_data_source.dart';
+import 'package:lavanderia_delivery/features/trips/models/accrediting_laundry_model.dart';
 import 'package:lavanderia_delivery/features/trips/models/delivery_trip_model.dart';
+import 'package:lavanderia_delivery/features/trips/models/driver_accreditation.dart';
+import 'package:lavanderia_delivery/features/trips/models/trip_request_model.dart';
 
 /// رد المغسلة على طلب رحلة، بيتعرض مرة واحدة لما resolutionTick يتغير
 enum TripResolution { none, approved, rejected }
@@ -27,6 +31,10 @@ class HomeState extends Equatable {
   final DeliveryTripModel? newTrip;
   final int newTripTick;
 
+  /// المغاسل اللي معتمدانا لقسم "معتمد من". null لحد ما نعرف، أو لو الريكوستات
+  /// فشلت، فالقسم مايظهرش بدل ما يقول إننا مش معتمدين
+  final List<AccreditingLaundryModel>? accreditedBy;
+
   const HomeState({
     this.isAvailable = false,
     this.isUpdatingAvailability = false,
@@ -37,6 +45,7 @@ class HomeState extends Equatable {
     this.resolutionTick = 0,
     this.newTrip,
     this.newTripTick = 0,
+    this.accreditedBy,
   });
 
   HomeState copyWith({
@@ -50,6 +59,7 @@ class HomeState extends Equatable {
     int? resolutionTick,
     DeliveryTripModel? newTrip,
     int? newTripTick,
+    List<AccreditingLaundryModel>? accreditedBy,
   }) => HomeState(
     isAvailable: isAvailable ?? this.isAvailable,
     isUpdatingAvailability:
@@ -61,6 +71,7 @@ class HomeState extends Equatable {
     resolutionTick: resolutionTick ?? this.resolutionTick,
     newTrip: newTrip ?? this.newTrip,
     newTripTick: newTripTick ?? this.newTripTick,
+    accreditedBy: accreditedBy ?? this.accreditedBy,
   );
 
   @override
@@ -74,6 +85,7 @@ class HomeState extends Equatable {
     resolutionTick,
     newTrip,
     newTripTick,
+    accreditedBy,
   ];
 }
 
@@ -85,6 +97,9 @@ class HomeCubit extends Cubit<HomeState> {
   final ProfileDataSource _profileDataSource;
   final DriverLocationReporter _locationReporter;
   StreamSubscription<RealtimeEvent>? _subscription;
+
+  /// أحدث رحلة في رحلاتنا، مصدر "معتمد من" لو مفيش رحلة حالية
+  DeliveryTripModel? _latestTrip;
 
   HomeCubit(
     this._tripsDataSource,
@@ -112,29 +127,56 @@ class HomeCubit extends Cubit<HomeState> {
   void _syncLocationReporter(bool isAvailable) =>
       isAvailable ? _locationReporter.start() : _locationReporter.stop();
 
-  /// الرحلة الحالية وإحصائيات النهارده
+  /// الرحلة الحالية وإحصائيات النهارده، ومنهم المغاسل اللي معتمدانا
   Future<void> loadMyTrips() async {
-    await Future.wait([_loadCurrentTrip(), _loadTodayStats()]);
+    final loaded = await Future.wait([_loadCurrentTrip(), _loadTodayStats()]);
+    if (isClosed) return;
+    await _loadAccreditation(tripsLoaded: loaded.every((ok) => ok));
   }
 
-  Future<void> _loadCurrentTrip() async {
+  /// بترجع false لو الريكوست فشل
+  Future<bool> _loadCurrentTrip() async {
     final result = await _tripsDataSource.getCurrentTrip();
-    if (isClosed) return;
-    result.fold(
-      (_) {},
-      (trip) =>
-          emit(state.copyWith(activeTrip: trip, clearActiveTrip: trip == null)),
+    if (isClosed) return false;
+    return result.fold((_) => false, (trip) {
+      emit(state.copyWith(activeTrip: trip, clearActiveTrip: trip == null));
+      return true;
+    });
+  }
+
+  /// من الرحلة الحالية أو آخر رحلة اللي جبناهم، ولو مفيش ولا رحلة من آخر طلب
+  Future<void> _loadAccreditation({required bool tripsLoaded}) async {
+    TripRequestModel? latestRequest;
+    if (state.activeTrip == null && _latestTrip == null) {
+      // لو ريكوست فيهم فشل مانعرفش إذا كان عندنا رحلات، فمانقولش إننا مش معتمدين
+      if (!tripsLoaded) return;
+      final result = await _tripsDataSource.getMyRequests(
+        pageIndex: 1,
+        pageSize: 1,
+      );
+      if (isClosed || result.isError) return;
+      latestRequest = result.getOrThrow().items.firstOrNull;
+    }
+    emit(
+      state.copyWith(
+        accreditedBy: resolveDriverAccreditation(
+          currentTrip: state.activeTrip,
+          latestTrip: _latestTrip,
+          latestRequest: latestRequest,
+        ),
+      ),
     );
   }
 
-  /// من رحلاتنا، لحد ما يبقى فيه endpoint للإحصائيات
-  Future<void> _loadTodayStats() async {
+  /// من رحلاتنا، لحد ما يبقى فيه endpoint للإحصائيات. بترجع false لو الريكوست فشل
+  Future<bool> _loadTodayStats() async {
     final result = await _tripsDataSource.getMyTrips(
       pageIndex: 1,
       pageSize: 30,
     );
-    if (isClosed) return;
-    result.fold((_) {}, (page) {
+    if (isClosed) return false;
+    return result.fold((_) => false, (page) {
+      _latestTrip = page.items.firstOrNull;
       final today = page.items.where(
         (trip) =>
             trip.stage == TripStage.completed &&
@@ -146,6 +188,7 @@ class HomeCubit extends Cubit<HomeState> {
           todayEarnings: today.fold<num>(0, (sum, trip) => sum + trip.fee),
         ),
       );
+      return true;
     });
   }
 
@@ -194,10 +237,23 @@ class HomeCubit extends Cubit<HomeState> {
   Future<void> _onRequestResolved(RealtimeEvent event) async {
     final approved = event.isApproved ?? false;
     final tripId = event.tripId;
+    // الـ push مافيهوش الحقل، فبناخده بس لو جه في الـ DTO من الـ hub
+    final request = event.request;
+    if (request != null && event.data.containsKey('driverAccreditedBy')) {
+      emit(state.copyWith(accreditedBy: request.driverAccreditedBy));
+    }
     if (approved && tripId != null) {
       final result = await _tripsDataSource.getTripDetails(tripId);
       if (isClosed) return;
-      result.fold((_) {}, (trip) => emit(state.copyWith(activeTrip: trip)));
+      result.fold(
+        (_) {},
+        (trip) => emit(
+          state.copyWith(
+            activeTrip: trip,
+            accreditedBy: trip.driverAccreditedBy,
+          ),
+        ),
+      );
       if (state.activeTrip?.id != tripId) await _loadCurrentTrip();
       if (isClosed) return;
     }

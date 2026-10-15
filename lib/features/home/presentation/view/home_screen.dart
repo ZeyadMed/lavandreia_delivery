@@ -20,6 +20,7 @@ import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_
 import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_widgets.dart';
 import 'package:lavanderia_delivery/features/trips/models/delivery_trip_model.dart';
 import 'package:lavanderia_delivery/features/trips/presentation/logic/available_trips_cubit.dart';
+import 'package:lavanderia_delivery/features/trips/presentation/view/widget/accreditation_widgets.dart';
 import 'package:lavanderia_delivery/features/trips/presentation/view/widget/trip_details_bottom_sheet.dart';
 import 'package:lavanderia_delivery/features/trips/presentation/view/widget/trip_widgets.dart';
 
@@ -182,6 +183,10 @@ class _HomeView extends StatelessWidget {
                             ],
                           ),
                         ),
+                        if (state.accreditedBy != null) ...[
+                          Gap(16.h),
+                          AccreditedByCard(laundries: state.accreditedBy!),
+                        ],
                         if (state.activeTrip != null) ...[
                           Gap(16.h),
                           ActiveTripBanner(

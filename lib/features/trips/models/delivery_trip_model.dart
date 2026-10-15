@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:lavanderia_delivery/features/trips/models/accrediting_laundry_model.dart';
 import 'package:lavanderia_delivery/features/trips/models/json_reader.dart';
 import 'package:lavanderia_delivery/features/trips/models/order_status.dart';
 
@@ -112,6 +113,10 @@ class DeliveryTripModel extends Equatable {
   /// الرحلة اتقفلت خالص (مثلاً بعد ما المغسلة تأكد رجوع هدوم تسليم فاشل)
   final bool isClosed;
 
+  /// المغاسل اللي معتمدة السواق المعيّن على الرحلة، وفي رحلاتنا ده إحنا.
+  /// في الرحلات المتاحة ولسه مالهاش سواق بيرجع [] دايمًا
+  final List<AccreditingLaundryModel> driverAccreditedBy;
+
   const DeliveryTripModel({
     required this.id,
     required this.type,
@@ -132,6 +137,7 @@ class DeliveryTripModel extends Equatable {
     this.isConfirmed = false,
     this.isHandedOver = false,
     this.isClosed = false,
+    this.driverAccreditedBy = const [],
   });
 
   factory DeliveryTripModel.fromJson(Map<String, dynamic> json) {
@@ -231,6 +237,9 @@ class DeliveryTripModel extends Equatable {
       isConfirmed: json.pick(['isConfirmed']) == true,
       isHandedOver: json.pick(['isHandedOver']) == true,
       isClosed: json.pick(['isClosed']) == true,
+      driverAccreditedBy: AccreditingLaundryModel.listFromJson(
+        json.pick(['driverAccreditedBy']),
+      ),
     );
   }
 
@@ -371,6 +380,7 @@ class DeliveryTripModel extends Equatable {
       isConfirmed: isConfirmed,
       isHandedOver: isHandedOver,
       isClosed: isClosed,
+      driverAccreditedBy: driverAccreditedBy,
     );
   }
 
@@ -395,5 +405,6 @@ class DeliveryTripModel extends Equatable {
     isConfirmed,
     isHandedOver,
     isClosed,
+    driverAccreditedBy,
   ];
 }

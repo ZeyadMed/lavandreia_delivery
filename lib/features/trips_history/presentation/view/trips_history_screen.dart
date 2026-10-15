@@ -12,8 +12,14 @@ import 'package:lavanderia_delivery/core/theme/text_styles.dart';
 import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_colors.dart';
 import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_widgets.dart';
 import 'package:lavanderia_delivery/features/trips/models/delivery_trip_model.dart';
+import 'package:lavanderia_delivery/features/trips/models/trip_request_model.dart';
 import 'package:lavanderia_delivery/features/trips/presentation/view/widget/trip_widgets.dart';
+import 'package:lavanderia_delivery/features/trips_history/presentation/logic/my_requests_cubit.dart';
 import 'package:lavanderia_delivery/features/trips_history/presentation/logic/my_trips_cubit.dart';
+import 'package:lavanderia_delivery/features/trips_history/presentation/view/widget/trip_request_card.dart';
+
+/// رحلاتنا، أو طلباتنا على الرحلات
+enum _TripsTab { trips, requests }
 
 /// فلتر الشاشة، بيتطبق على اللي اتحمل لأن الـ API مفيهوش فلتر بالحالة
 enum TripsFilter { active, completed, failed, cancelled }
@@ -42,33 +48,114 @@ class TripsHistoryScreen extends StatefulWidget {
 }
 
 class _TripsHistoryScreenState extends State<TripsHistoryScreen> {
+  _TripsTab _tab = _TripsTab.trips;
+
   /// null = الكل
   TripsFilter? _selectedFilter;
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => getIt<MyTripsCubit>()
-        ..initPagination()
-        ..fetch(page: 1),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) => getIt<MyTripsCubit>()
+            ..initPagination()
+            ..fetch(page: 1),
+        ),
+        // lazy، فمابيجيبش الطلبات غير أول ما تاب طلباتي يتفتح
+        BlocProvider(
+          create: (_) => getIt<MyRequestsCubit>()
+            ..initPagination()
+            ..fetch(page: 1),
+        ),
+      ],
       child: Scaffold(
         backgroundColor: AppColors.backgroundColor,
         body: Column(
           children: [
             const _TripsHeader(),
             Gap(20.h),
-            _TripsFilterBar(
-              selected: _selectedFilter,
-              onChanged: (filter) => setState(() => _selectedFilter = filter),
-            ),
-            Expanded(
-              child: BlocBuilder<MyTripsCubit, BaseState<DeliveryTripModel>>(
-                builder: (context, state) =>
-                    _TripsList(state: state, filter: _selectedFilter),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: _TripsTabs(
+                selected: _tab,
+                onChanged: (tab) => setState(() => _tab = tab),
               ),
             ),
+            if (_tab == _TripsTab.trips) ...[
+              Gap(16.h),
+              _TripsFilterBar(
+                selected: _selectedFilter,
+                onChanged: (filter) => setState(() => _selectedFilter = filter),
+              ),
+              Expanded(
+                child: BlocBuilder<MyTripsCubit, BaseState<DeliveryTripModel>>(
+                  builder: (context, state) =>
+                      _TripsList(state: state, filter: _selectedFilter),
+                ),
+              ),
+            ] else
+              Expanded(
+                child:
+                    BlocBuilder<MyRequestsCubit, BaseState<TripRequestModel>>(
+                      builder: (context, state) =>
+                          _MyRequestsList(state: state),
+                    ),
+              ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _TripsTabs extends StatelessWidget {
+  final _TripsTab selected;
+  final ValueChanged<_TripsTab> onChanged;
+
+  const _TripsTabs({required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(4.r),
+      decoration: BoxDecoration(
+        color: AppColors.whiteColor,
+        borderRadius: BorderRadius.circular(16.r),
+      ),
+      child: Row(
+        children: [
+          for (final tab in _TripsTab.values)
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => onChanged(tab),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: EdgeInsets.symmetric(vertical: 10.h),
+                  decoration: BoxDecoration(
+                    color: tab == selected
+                        ? AppColors.primaryColor
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Text(
+                    switch (tab) {
+                      _TripsTab.trips => '🚗 ${'trips'.tr()}',
+                      _TripsTab.requests => '📝 ${'my_requests'.tr()}',
+                    },
+                    textAlign: TextAlign.center,
+                    style: TextStyles.boldStyle(
+                      13,
+                      color: tab == selected
+                          ? AppColors.whiteColor
+                          : AppColors.blackColor,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -142,6 +229,86 @@ class _TripsList extends StatelessWidget {
             onTap: trip.isActive
                 ? () async {
                     await context.push(AppRouter.activeTrip, extra: trip.id);
+                    cubit.refresh();
+                  }
+                : null,
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _MyRequestsList extends StatelessWidget {
+  final BaseState<TripRequestModel> state;
+
+  const _MyRequestsList({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<MyRequestsCubit>();
+
+    if (state.isLoading && state.items.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final requests = state.items;
+
+    if (requests.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: cubit.refresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 24.h),
+          children: [
+            if (state.isFailure)
+              _ErrorCard(
+                message: state.errorMessage ?? '',
+                onRetry: cubit.refresh,
+              )
+            else
+              const HomeEmptyState(
+                emoji: '📝',
+                titleKey: 'no_requests',
+                subtitleKey: 'no_requests_hint',
+              ),
+          ],
+        ),
+      );
+    }
+
+    final showLoadMore = state.isLoadingMore || state.isLoadingMoreFauilare;
+
+    return RefreshIndicator(
+      onRefresh: cubit.refresh,
+      child: ListView.separated(
+        controller: cubit.scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 24.h),
+        itemCount: requests.length + (showLoadMore ? 1 : 0),
+        separatorBuilder: (_, _) => Gap(14.h),
+        itemBuilder: (context, index) {
+          if (index == requests.length) {
+            return state.isLoadingMore
+                ? const Center(child: CircularProgressIndicator())
+                : TextButton(
+                    onPressed: () => cubit.fetch(page: state.page),
+                    child: Text('try_again'.tr()),
+                  );
+          }
+          final request = requests[index];
+          // الطلب اللي اتقبل بقى رحلتنا، فبيفتح شاشة الرحلة لو لسه شغالة
+          final canOpen =
+              request.status == TripRequestStatus.approved &&
+              (request.trip?.isActive ?? false);
+          return TripRequestCard(
+            request: request,
+            onTap: canOpen
+                ? () async {
+                    await context.push(
+                      AppRouter.activeTrip,
+                      extra: request.tripId,
+                    );
                     cubit.refresh();
                   }
                 : null,

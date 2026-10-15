@@ -4,6 +4,8 @@ import 'package:lavanderia_delivery/features/home/presentation/logic/home_cubit.
 import 'package:lavanderia_delivery/features/trips/data/trips_data_source.dart';
 import 'package:lavanderia_delivery/features/trips/presentation/logic/active_trip_cubit.dart';
 import 'package:lavanderia_delivery/features/trips/presentation/logic/available_trips_cubit.dart';
+import 'package:lavanderia_delivery/features/trips/presentation/logic/driver_accreditation_cubit.dart';
+import 'package:lavanderia_delivery/features/trips_history/presentation/logic/my_requests_cubit.dart';
 import 'package:lavanderia_delivery/features/trips_history/presentation/logic/my_trips_cubit.dart';
 import 'package:lavanderia_delivery/features/wallet/data/wallet_data_source.dart';
 import 'package:lavanderia_delivery/features/wallet/presentation/logic/wallet_cubit.dart';
@@ -28,6 +30,12 @@ class TripsServicesLocator {
       () => ActiveTripCubit(getIt(), getIt()),
     );
     getIt.registerFactory<MyTripsCubit>(() => MyTripsCubit(getIt()));
+    getIt.registerFactory<MyRequestsCubit>(
+      () => MyRequestsCubit(getIt(), getIt()),
+    );
+    getIt.registerFactory<DriverAccreditationCubit>(
+      () => DriverAccreditationCubit(getIt()),
+    );
 
     getIt.registerLazySingleton<WalletDataSource>(
       () => WalletDataSourceImpl(getIt()),

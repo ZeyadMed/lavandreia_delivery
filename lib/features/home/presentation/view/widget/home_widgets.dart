@@ -6,6 +6,8 @@ import 'package:lavanderia_delivery/core/style/app_colors.dart';
 import 'package:lavanderia_delivery/core/theme/text_styles.dart';
 import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_colors.dart';
 import 'package:lavanderia_delivery/features/trips/models/delivery_trip_model.dart';
+import 'package:lavanderia_delivery/features/trips/models/driver_accreditation.dart';
+import 'package:lavanderia_delivery/features/trips/presentation/view/widget/accreditation_widgets.dart';
 import 'package:lavanderia_delivery/features/trips/presentation/view/widget/trip_widgets.dart';
 
 /// الكارت الأبيض الأساسي اللي كل أقسام الرئيسية مبنية عليه
@@ -264,6 +266,13 @@ class ActiveTripBanner extends StatelessWidget {
                           weight: FontWeight.w400,
                         ),
                       ),
+                      if (trip.isAccreditedByTripLaundry) ...[
+                        Gap(6.h),
+                        const AccreditedLaundryBadge(
+                          labelKey: 'accredited_at_laundry',
+                          onDark: true,
+                        ),
+                      ],
                     ],
                   ),
                 ),
