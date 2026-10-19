@@ -24,21 +24,29 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>ar</string>
+		<string>en</string>
+	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>نستخدم موقعك طول ما أنت متاح لاستقبال الرحلات، حتى والتطبيق في الخلفية، عشان توصلك الرحلات القريبة.</string>
+	<string>Lavanderia Delivery uses your location while you are available for trips, including when the app is in the background, so nearby pickup and delivery trips can be sent to you.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>نستخدم موقعك لعرض الرحلات القريبة منك وإرساله مع طلب الرحلة.</string>
+	<string>Lavanderia Delivery uses your location to show trips near you and to send it with your trip requests.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>نحتاج الكاميرا لتصوير الهدوم وقت استلامها من العميل ولرفع المستندات.</string>
+	<string>Lavanderia Delivery uses the camera to take photos of the clothes when you pick them up from the customer and to upload your documents.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>نحتاج الوصول للصور لاختيار صور الهدوم أو المستندات.</string>
+	<string>Lavanderia Delivery accesses your photos so you can choose pictures of the clothes or your documents to upload.</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>comgooglemaps</string>
 		<string>waze</string>
 		<string>tel</string>
+		<string>mailto</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>
@@ -75,8 +83,6 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>

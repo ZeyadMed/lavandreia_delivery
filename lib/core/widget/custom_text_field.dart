@@ -5,6 +5,8 @@ import 'package:lavanderia_delivery/core/style/app_colors.dart';
 import 'package:lavanderia_delivery/core/theme/text_styles.dart';
 import 'package:lavanderia_delivery/core/common_widget/label.dart';
 
+import 'dart:ui' as ui;
+
 class Customtextfield extends StatefulWidget {
   const Customtextfield({
     super.key,
@@ -106,6 +108,11 @@ class _CustomtextfieldState extends State<Customtextfield> {
     }
   }
 
+  /// خانات كلمة المرور بتتكتب دايماً من الشمال لليمين حتى لو اللغة عربي
+  bool get _isPassword =>
+      widget.obscureText ||
+      widget.keyboardType == TextInputType.visiblePassword;
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -135,6 +142,7 @@ class _CustomtextfieldState extends State<Customtextfield> {
           focusNode: widget.focusNode,
           onChanged: widget.onChanged,
           obscureText: hidden,
+          textDirection: _isPassword ? ui.TextDirection.ltr : null,
           style: widget.style ?? TextStyles.darkRegular16,
           onTap:
               widget.onTap ??

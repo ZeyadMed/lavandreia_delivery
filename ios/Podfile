@@ -1,5 +1,9 @@
-# Uncomment this line to define a global platform for your project
-# platform :ios, '15.0'
+platform :ios, '15.0'
+
+# file_picker بيتستخدم لملفات PDF بس (الصور من image_picker)، فبنشيل أجزاء
+# الصور والصوت عشان مايتطلبش صلاحية Apple Music ويقل حجم التطبيق
+Pod::PICKER_MEDIA = false
+Pod::PICKER_AUDIO = false
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -39,5 +43,11 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    # بنرفع الـ pods القديمة لـ 15.0 عشان تحذيرات Xcode، ومابننزلش اللي أعلى
+    target.build_configurations.each do |config|
+      if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 15.0
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      end
+    end
   end
 end

@@ -1,0 +1,5 @@
+/* نصوص طلب الصلاحيات بالعربي، والإنجليزي في Info.plist */
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "نستخدم موقعك طول ما أنت متاح لاستقبال الرحلات، حتى والتطبيق في الخلفية، عشان توصلك الرحلات القريبة.";
+"NSLocationWhenInUseUsageDescription" = "نستخدم موقعك لعرض الرحلات القريبة منك وإرساله مع طلب الرحلة.";
+"NSCameraUsageDescription" = "نحتاج الكاميرا لتصوير الهدوم وقت استلامها من العميل ولرفع المستندات.";
+"NSPhotoLibraryUsageDescription" = "نحتاج الوصول للصور لاختيار صور الهدوم أو المستندات.";

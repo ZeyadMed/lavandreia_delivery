@@ -1,0 +1,4 @@
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Lavanderia Delivery uses your location while you are available for trips, including when the app is in the background, so nearby pickup and delivery trips can be sent to you.";
+"NSLocationWhenInUseUsageDescription" = "Lavanderia Delivery uses your location to show trips near you and to send it with your trip requests.";
+"NSCameraUsageDescription" = "Lavanderia Delivery uses the camera to take photos of the clothes when you pick them up from the customer and to upload your documents.";
+"NSPhotoLibraryUsageDescription" = "Lavanderia Delivery accesses your photos so you can choose pictures of the clothes or your documents to upload.";
