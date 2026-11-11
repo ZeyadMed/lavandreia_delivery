@@ -66,7 +66,6 @@ class _EarningsView extends StatelessWidget {
               txState.items,
             );
             return Scaffold(
-              backgroundColor: AppColors.backgroundColor,
               body: Column(
                 children: [
                   _EarningsHeader(

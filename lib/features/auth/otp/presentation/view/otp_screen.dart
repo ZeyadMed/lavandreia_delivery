@@ -97,7 +97,6 @@ class _OtpScreenState extends State<OtpScreen> {
     return BlocProvider(
       create: (context) => getIt<VerifyPhoneBloc>(),
       child: Scaffold(
-        backgroundColor: AppColors.secondaryColor,
         body: BlocConsumer<VerifyPhoneBloc, BaseState<AuthModel>>(
           listener: (context, state) {
             if (state.isSuccess) {

@@ -37,10 +37,9 @@ class ContactUsScreen extends StatelessWidget {
     return BlocProvider(
       create: (_) => getIt<ContactInfoCubit>()..getContacts(),
       child: Scaffold(
-        backgroundColor: AppColors.backgroundColor,
         appBar: const CustomAppBar(
           title: 'contact_us',
-          backgroundColor: AppColors.backgroundColor,
+          backgroundColor: AppColors.scaffoldBackgroundColor,
         ),
         body: BlocBuilder<ContactInfoCubit, BaseState<ContactInfoModel>>(
           builder: (context, state) {

@@ -65,7 +65,6 @@ class _LoginScreenState extends State<LoginScreen> {
     return BlocProvider(
       create: (context) => getIt<LoginBloc>(),
       child: Scaffold(
-        backgroundColor: AppColors.secondaryColor,
         body: BlocConsumer<LoginBloc, BaseState<AuthModel>>(
           listener: (context, state) {
             if (state.isSuccess) {

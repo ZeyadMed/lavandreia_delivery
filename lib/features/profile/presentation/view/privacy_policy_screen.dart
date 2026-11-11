@@ -24,10 +24,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
     return BlocProvider(
       create: (_) => getIt<PrivacyPolicyCubit>()..getPrivacyPolicy(),
       child: Scaffold(
-        backgroundColor: AppColors.backgroundColor,
         appBar: const CustomAppBar(
           title: 'privacy_policy',
-          backgroundColor: AppColors.backgroundColor,
+          backgroundColor: AppColors.scaffoldBackgroundColor,
         ),
         body: BlocBuilder<PrivacyPolicyCubit, BaseState<PrivacyPolicyModel>>(
           builder: (context, state) {

@@ -25,7 +25,6 @@ class NotificationsScreen extends StatelessWidget {
         ..initPagination()
         ..fetch(page: 1),
       child: Scaffold(
-        backgroundColor: AppColors.backgroundColor,
         body: BlocBuilder<NotificationsCubit, BaseState<NotificationModel>>(
           builder: (context, state) {
             return Column(

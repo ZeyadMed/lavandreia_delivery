@@ -118,7 +118,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           if (!didPop) _goToStep(_currentStep - 1);
         },
         child: Scaffold(
-          backgroundColor: AppColors.brandBgColor,
           body: SafeArea(
             child: Column(
               children: [

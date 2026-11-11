@@ -165,7 +165,6 @@ class _EditProfileViewState extends State<_EditProfileView> {
       child: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Scaffold(
-          backgroundColor: AppColors.backgroundColor,
           body: Column(
             children: [
               const _EditProfileHeader(),

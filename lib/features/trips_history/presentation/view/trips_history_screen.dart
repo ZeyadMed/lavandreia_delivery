@@ -70,7 +70,6 @@ class _TripsHistoryScreenState extends State<TripsHistoryScreen> {
         ),
       ],
       child: Scaffold(
-        backgroundColor: AppColors.backgroundColor,
         body: Column(
           children: [
             const _TripsHeader(),

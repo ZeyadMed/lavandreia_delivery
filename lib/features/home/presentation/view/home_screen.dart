@@ -137,7 +137,6 @@ class _HomeView extends StatelessWidget {
         ),
       ],
       child: Scaffold(
-        backgroundColor: AppColors.backgroundColor,
         body: Column(
           children: [
             HomeHeader(name: CacheManager.getUserName() ?? ''),

@@ -73,7 +73,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     return BlocProvider(
       create: (context) => getIt<ResetPasswordBloc>(),
       child: Scaffold(
-        backgroundColor: AppColors.secondaryColor,
         body: BlocConsumer<ResetPasswordBloc, BaseState<String>>(
           listener: (context, state) {
             if (state.isSuccess) {

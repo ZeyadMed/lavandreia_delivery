@@ -69,7 +69,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
         child: Scaffold(
-          backgroundColor: AppColors.backgroundColor,
           body: BlocBuilder<ProfileCubit, BaseState<DriverProfileModel>>(
             builder: (context, state) {
               final profile = state.data;

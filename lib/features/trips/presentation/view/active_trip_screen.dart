@@ -37,7 +37,6 @@ class ActiveTripScreen extends StatelessWidget {
     return BlocProvider(
       create: (_) => getIt<ActiveTripCubit>()..load(tripId: tripId),
       child: Scaffold(
-        backgroundColor: AppColors.backgroundColor,
         body: BlocBuilder<ActiveTripCubit, ActiveTripState>(
           builder: (context, state) {
             return Column(

@@ -22,7 +22,6 @@ class AccountUnderReviewScreen extends StatelessWidget {
         if (!didPop) _backToHome(context);
       },
       child: Scaffold(
-        backgroundColor: AppColors.brandBgColor,
         body: SafeArea(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 20.w),

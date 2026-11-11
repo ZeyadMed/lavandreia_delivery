@@ -14,7 +14,6 @@ import 'package:lavanderia_delivery/core/notification/messaging_config.dart';
 import 'package:lavanderia_delivery/core/internet_connenction/internet_connenction_cubit.dart';
 import 'package:lavanderia_delivery/core/router/app_router.dart';
 import 'package:lavanderia_delivery/core/service_locator/service_locator.dart';
-import 'package:lavanderia_delivery/core/style/app_colors.dart';
 import 'package:lavanderia_delivery/core/style/assets.dart';
 import 'package:lavanderia_delivery/core/theme/text_styles.dart';
 import 'package:lavanderia_delivery/core/theme/theme.dart';
@@ -106,7 +105,6 @@ class MyApp extends StatelessWidget {
                       return MediaQuery(
                         data: media,
                         child: Scaffold(
-                          backgroundColor: AppColors.whiteColor,
                           body: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             mainAxisAlignment: MainAxisAlignment.center,
