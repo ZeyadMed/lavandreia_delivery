@@ -25,7 +25,7 @@ import 'package:slide_to_act/slide_to_act.dart';
 
 /// الرحلة الشغالة خطوة بخطوة.
 /// Pickup: رايح للعميل ← صور الهدوم واستلام ← OTP للمغسلة ← المغسلة تأكد
-/// Dropoff: استلام من المغسلة ← رايح للعميل ← وصلت ← OTP للعميل ← العميل يأكد
+/// Dropoff: استلام من المغسلة ← رايح للعميل ← وصلت ← تم التسليم
 class ActiveTripScreen extends StatelessWidget {
   /// null = أول رحلة شغالة متعيّنة علينا
   final int? tripId;
@@ -105,7 +105,10 @@ class _TripBody extends StatelessWidget {
               context,
               trip,
             ),
-            (TripType.dropoff, TripStage.arrived) => _dropoffArrived(trip),
+            (TripType.dropoff, TripStage.arrived) => _dropoffArrived(
+              context,
+              trip,
+            ),
             (TripType.dropoff, _) => _dropoffToCustomer(context, trip),
           },
         ],
@@ -216,11 +219,10 @@ class _TripBody extends StatelessWidget {
     ];
   }
 
-  /// عند باب العميل ومعاه OTP العميل هيدخّله في تطبيقه
-  List<Widget> _dropoffArrived(DeliveryTripModel trip) {
+  /// عند باب العميل، وبعد ما يسلّمه الهدوم بيأكد التسليم بنفسه
+  List<Widget> _dropoffArrived(BuildContext context, DeliveryTripModel trip) {
+    final cubit = context.read<ActiveTripCubit>();
     return [
-      _OtpCard(code: trip.otpCode, hintKey: 'show_otp_to_customer'),
-      Gap(16.h),
       _PointActionsCard(
         emoji: '🏠',
         titleKey: 'customer_details',
@@ -230,8 +232,13 @@ class _TripBody extends StatelessWidget {
       ),
       Gap(12.h),
       const _InfoNote(textKey: 'no_cash_collection'),
-      Gap(16.h),
-      const _WaitingCard(textKey: 'waiting_customer_confirmation'),
+      Gap(20.h),
+      _SlideToConfirm(
+        text: 'slide_delivered'.tr(),
+        enabled: !state.isSubmitting,
+        isLoading: state.isSubmitting,
+        onSubmit: () => _run(context, cubit.deliver()),
+      ),
     ];
   }
 }
@@ -342,7 +349,7 @@ class _TripSteps extends StatelessWidget {
       : const [
           'step_laundry_pickup',
           'step_go_to_customer',
-          'step_customer_confirm',
+          'step_deliver_to_customer',
         ];
 
   int get _current => switch ((trip.type, trip.stage)) {
@@ -787,7 +794,7 @@ class _SlideToConfirm extends StatelessWidget {
   }
 }
 
-/// الـ OTP بخط كبير عشان المندوب يوريه للمغسلة أو للعميل من الموبايل
+/// الـ OTP بخط كبير عشان المندوب يوريه للمغسلة من الموبايل
 class _OtpCard extends StatelessWidget {
   final String? code;
   final String hintKey;

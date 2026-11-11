@@ -20,7 +20,8 @@ enum TripType {
   }
 }
 
-/// مين اللي لازم يأكد الـ OTP دلوقتي (awaitingConfirmationBy)
+/// مين اللي لازم يأكد الـ OTP دلوقتي (awaitingConfirmationBy).
+/// في الفلو الحالي المغسلة بس، والعميل مابقاش بيأكد بكود
 enum ConfirmationParty {
   laundry,
   customer;
@@ -50,7 +51,7 @@ enum TripStage {
   /// Pickup: استلمنا من العميل وماشيين للمغسلة ومعانا OTP
   collected,
 
-  /// Dropoff: وصلنا باب العميل ومعانا OTP مستنيين يأكده
+  /// Dropoff: وصلنا باب العميل وفاضل نأكد التسليم بنفسنا (deliver)
   arrived,
   completed,
 
@@ -104,7 +105,8 @@ class DeliveryTripModel extends Equatable {
   final bool isAwaitingConfirmation;
   final ConfirmationParty? awaitingConfirmationBy;
 
-  /// الطرف الأخير أكد الـ OTP: المغسلة في الاستلام أو العميل في التسليم
+  /// الرحلة اتأكدت: المغسلة أكدت الـ OTP في الاستلام، أو إحنا أكدنا التسليم
+  /// للعميل (deliver)
   final bool isConfirmed;
 
   /// Dropoff: المغسلة أكدت إنها سلّمتنا الهدوم
@@ -271,6 +273,7 @@ class DeliveryTripModel extends Equatable {
       (TripType.pickup, ConfirmationParty.laundry) => TripStage.collected,
       (TripType.dropoff, ConfirmationParty.laundry) =>
         TripStage.awaitingHandover,
+      // ريسبونس قديم من أيام كود العميل، السيرفر مابقاش بيرجعها
       (TripType.dropoff, ConfirmationParty.customer) => TripStage.arrived,
       _ => null,
     };
@@ -298,10 +301,9 @@ class DeliveryTripModel extends Equatable {
       OrderStatus.deliveryFailed => TripStage.failed,
       OrderStatus.cancelled || OrderStatus.rejected => TripStage.cancelled,
       OrderStatus.awaitingDropoffCollection => TripStage.awaitingHandover,
+      // مفيش كود للعميل، فالوصول بيبان من حالة الرحلة بس
       OrderStatus.outForDelivery =>
-        _tripStatus.contains('arriv') || otpCode != null
-            ? TripStage.arrived
-            : TripStage.assigned,
+        _tripStatus.contains('arriv') ? TripStage.arrived : TripStage.assigned,
       // Ready (المغسلة لسه ماوافقتش) أو unknown
       _ => null,
     };
@@ -340,10 +342,9 @@ class DeliveryTripModel extends Equatable {
         (status.isEmpty && orderStatus == OrderStatus.newOrder)) {
       return TripStage.awaitingDriver;
     }
-    // الـ OTP بيرجع بس بعد collect أو arrive
-    if (otpCode != null) {
-      return type == TripType.pickup ? TripStage.collected : TripStage.arrived;
-    }
+    // الـ OTP في الاستلام بيرجع بس بعد collect. في التسليم هو كود المغسلة
+    // ومالوش علاقة بالوصول للعميل
+    if (otpCode != null && type == TripType.pickup) return TripStage.collected;
     return TripStage.assigned;
   }
 
@@ -359,6 +360,7 @@ class DeliveryTripModel extends Equatable {
     String? otpCode,
     String? rawStatus,
     bool? isRequestedByMe,
+    bool? isConfirmed,
   }) {
     return DeliveryTripModel(
       id: id,
@@ -377,7 +379,7 @@ class DeliveryTripModel extends Equatable {
       completedAt: completedAt,
       isAwaitingConfirmation: isAwaitingConfirmation,
       awaitingConfirmationBy: awaitingConfirmationBy,
-      isConfirmed: isConfirmed,
+      isConfirmed: isConfirmed ?? this.isConfirmed,
       isHandedOver: isHandedOver,
       isClosed: isClosed,
       driverAccreditedBy: driverAccreditedBy,

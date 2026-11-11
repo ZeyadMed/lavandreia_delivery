@@ -75,8 +75,11 @@ abstract interface class Endpoints {
   /// POST multipart بصور الهدوم (photos) وقت الاستلام من العميل، وبيرجع OTP للمغسلة
   static String collectTrip(int tripId) => 'api/driver/trips/$tripId/collect';
 
-  /// POST لما المندوب يوصل باب العميل في رحلة التسليم، وبيرجع OTP للعميل
+  /// POST لما المندوب يوصل باب العميل في رحلة التسليم، والسيرفر بيبعت تنبيه للعميل
   static String arriveTrip(int tripId) => 'api/driver/trips/$tripId/arrive';
+
+  /// POST من غير body: المندوب بيأكد بنفسه إنه سلّم الهدوم للعميل والرحلة بتخلص
+  static String deliverTrip(int tripId) => 'api/driver/trips/$tripId/deliver';
 
   /// GET رحلة واحدة من رحلاتنا، فيها الحقول اللي للمندوب بس (otpCode, contactPhoneNumber)
   static String tripDetails(int tripId) => 'api/driver/trips/$tripId';

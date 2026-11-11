@@ -47,7 +47,11 @@ abstract interface class TripsDataSource {
     required List<File> photos,
   });
 
-  Future<Either<Failure, TripOtpModel>> arrive(int tripId);
+  /// وصلنا باب العميل، والسيرفر بيبعتله تنبيه
+  Future<Either<Failure, void>> arrive(int tripId);
+
+  /// سلّمنا الهدوم للعميل والرحلة خلصت، من غير أي كود من العميل
+  Future<Either<Failure, void>> deliver(int tripId);
 
   Future<Either<Failure, void>> setAvailability(bool isAvailable);
 
@@ -182,11 +186,20 @@ class TripsDataSourceImpl implements TripsDataSource {
   }
 
   @override
-  Future<Either<Failure, TripOtpModel>> arrive(int tripId) {
-    return _genericDataSource.postData<TripOtpModel>(
-      endpoint: Endpoints.arriveTrip(tripId),
-      fromJson: TripOtpModel.fromJson,
+  Future<Either<Failure, void>> arrive(int tripId) =>
+      _postWithoutResult(Endpoints.arriveTrip(tripId));
+
+  @override
+  Future<Either<Failure, void>> deliver(int tripId) =>
+      _postWithoutResult(Endpoints.deliverTrip(tripId));
+
+  /// زي requestTrip: `postData<Null>` بيفشل في الـ cast فبناخد الريسبونس Map ونسيبه
+  Future<Either<Failure, void>> _postWithoutResult(String endpoint) async {
+    final result = await _genericDataSource.postData<Map<String, dynamic>>(
+      endpoint: endpoint,
+      fromJson: (json) => json,
     );
+    return result.fold((failure) => Left(failure), (_) => const Right(null));
   }
 
   @override

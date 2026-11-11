@@ -92,7 +92,7 @@ void main() {
       },
     );
 
-    test('an OTP without a clear status means collected / arrived', () {
+    test('an OTP without a clear status means collected for pickup only', () {
       final pickup = DeliveryTripModel.fromJson({
         'id': 1,
         'type': 'Pickup',
@@ -101,10 +101,11 @@ void main() {
       final updated = pickup.copyWith(otpCode: '5678');
 
       expect(pickup.stage, TripStage.collected);
+      // في التسليم الـ OTP كود المغسلة، مش معناه إننا وصلنا للعميل
       expect(
         DeliveryTripModel.fromJson({'id': 2, 'type': 'Dropoff', 'otp': '9999'})
             .stage,
-        TripStage.arrived,
+        TripStage.assigned,
       );
       expect(updated.otpCode, '5678');
     });
@@ -173,11 +174,34 @@ void main() {
       },
     );
 
-    test('OutForDelivery allows arrive, then arrived with an OTP', () {
+    test('OutForDelivery allows arrive, then arrived from the trip status', () {
       expect(trip('Dropoff', 'OutForDelivery').stage, TripStage.assigned);
       expect(
-        trip('Dropoff', 'OutForDelivery').copyWith(otpCode: '1234').stage,
+        trip('Dropoff', 'OutForDelivery').copyWith(rawStatus: 'Arrived').stage,
         TripStage.arrived,
+      );
+      expect(
+        trip('Dropoff', 'OutForDelivery', status: 'Arrived').stage,
+        TripStage.arrived,
+      );
+      // مفيش كود للعميل، فالـ OTP لوحده مايعنيش إننا وصلنا
+      expect(
+        trip('Dropoff', 'OutForDelivery').copyWith(otpCode: '1234').stage,
+        TripStage.assigned,
+      );
+    });
+
+    test('delivering an arrived dropoff completes it', () {
+      final arrived = trip('Dropoff', 'OutForDelivery', status: 'Arrived');
+      final delivered = arrived.copyWith(isConfirmed: true);
+
+      expect(arrived.isActive, isTrue);
+      expect(delivered.isConfirmed, isTrue);
+      expect(delivered.stage, TripStage.completed);
+      expect(delivered.isActive, isFalse);
+      expect(
+        trip('Dropoff', 'Delivered', status: 'Arrived').stage,
+        TripStage.completed,
       );
     });
 
@@ -417,7 +441,7 @@ void main() {
       expect(t.stage, TripStage.assigned);
     });
 
-    test('dropoff waiting for customer OTP is arrived', () {
+    test('legacy response: dropoff waiting for customer OTP is arrived', () {
       final t = trip({
         'type': 'Dropoff',
         'orderStatus': 'OutForDelivery',

@@ -231,8 +231,8 @@ class CacheManager {
     }
   }
 
-  /// الـ OTP بيرجع مرة واحدة بس من collect أو arrive، فبنحفظه بالرحلة
-  /// عشان لو التطبيق اتقفل قبل ما المندوب يوريه للمغسلة أو للعميل مايضيعش
+  /// الـ OTP بيرجع مرة واحدة بس من collect، فبنحفظه بالرحلة
+  /// عشان لو التطبيق اتقفل قبل ما المندوب يوريه للمغسلة مايضيعش
   static Future<void> saveTripOtp(int tripId, String otp) async {
     await sharedPreferences.setString('tripOtp_$tripId', otp);
   }

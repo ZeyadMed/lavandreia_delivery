@@ -49,11 +49,11 @@ class ActiveTripState extends Equatable {
   List<Object?> get props => [status, trip, photos, isSubmitting, errorMessage];
 }
 
-/// الرحلة الشغالة وخطواتها: الاستلام من العميل بالصور، أو الوصول لباب العميل،
-/// وبعدين استنى تأكيد الـ OTP من المغسلة أو العميل.
+/// الرحلة الشغالة وخطواتها: الاستلام بالصور وبعدين استنى المغسلة تأكد الـ OTP،
+/// أو في التسليم الوصول لباب العميل وبعدين إحنا اللي بنأكد التسليم (deliver).
 ///
-/// التأكيد بيوصل كـ OrderUpdated فبنجيب الرحلة من جديد (الـ payload مافيهوش
-/// الـ OTP)، والـ polling بيشتغل بس وقت الانتظار لو الـ hub مش متوصل
+/// تأكيد المغسلة بيوصل كـ OrderUpdated فبنجيب الرحلة من جديد (الـ payload
+/// مافيهوش الـ OTP)، والـ polling بيشتغل بس وقت انتظار المغسلة لو الـ hub مش متوصل
 class ActiveTripCubit extends Cubit<ActiveTripState> {
   final TripsDataSource _dataSource;
   final RealtimeService _realtime;
@@ -102,6 +102,15 @@ class ActiveTripCubit extends Cubit<ActiveTripState> {
           return;
         }
         _tripId = trip.id;
+        // الرحلة خلصت عندنا (مثلاً بعد deliver)، فريسبونس متأخر لسه شايفها
+        // شغالة مايرجعش الشاشة لمرحلة قبلها
+        final current = state.trip;
+        if (current != null &&
+            current.id == trip.id &&
+            current.stage == TripStage.completed &&
+            trip.isActive) {
+          return;
+        }
         final withOtp = _withCachedOtp(trip);
         _emitTrip(withOtp);
         // الرحلة الحالية مابترجعش الـ OTP، وكود تسليم المغسلة مابيرجعش من أي أكشن
@@ -141,11 +150,11 @@ class ActiveTripCubit extends Cubit<ActiveTripState> {
     }
   }
 
-  /// مستنيين طرف تاني يأكد: المغسلة (استلام أو تسليم للمندوب) أو العميل
+  /// مستنيين المغسلة تأكد (استلام أو تسليم للمندوب). عند العميل إحنا اللي
+  /// بنأكد التسليم فمفيش حاجة نستناها
   bool _isWaitingConfirmation(DeliveryTripModel trip) => const {
     TripStage.collected,
     TripStage.awaitingHandover,
-    TripStage.arrived,
   }.contains(trip.stage);
 
   void _updatePolling(DeliveryTripModel trip) {
@@ -196,14 +205,35 @@ class ActiveTripCubit extends Cubit<ActiveTripState> {
     return _applyOtp(result, trip, nextStatus: 'Collected');
   }
 
-  /// رحلة التسليم: وصلنا باب العميل وبناخد OTP جديد العميل هيأكده من عنده
+  /// رحلة التسليم: وصلنا باب العميل والسيرفر بيبعتله تنبيه
   Future<String?> arrive() async {
     final trip = state.trip;
     if (trip == null || state.isSubmitting) return null;
 
     emit(state.copyWith(isSubmitting: true));
     final result = await _dataSource.arrive(trip.id);
-    return _applyOtp(result, trip, nextStatus: 'Arrived');
+    return _applyResult(result, trip.copyWith(rawStatus: 'Arrived'));
+  }
+
+  /// رحلة التسليم: سلّمنا الهدوم للعميل والرحلة خلصت، من غير كود من العميل.
+  /// _emitTrip بيمسح أي OTP متخزن للرحلة لما تبقى completed
+  Future<String?> deliver() async {
+    final trip = state.trip;
+    if (trip == null || state.isSubmitting) return null;
+
+    emit(state.copyWith(isSubmitting: true));
+    final result = await _dataSource.deliver(trip.id);
+    return _applyResult(result, trip.copyWith(isConfirmed: true));
+  }
+
+  /// بيحدّث الرحلة لـ [next] لو الأكشن نجح، أو بيرجع رسالة الخطأ
+  String? _applyResult(Either<Failure, void> result, DeliveryTripModel next) {
+    if (isClosed) return null;
+    emit(state.copyWith(isSubmitting: false));
+    return result.fold((failure) => failure.message, (_) {
+      _emitTrip(next);
+      return null;
+    });
   }
 
   /// بيحفظ الـ OTP ويحدّث الرحلة، أو بيرجع رسالة الخطأ
