@@ -1,5 +1,9 @@
 {
   "home": "Home",
+  "checkInternet": "Please check your internet connection and try again",
+  "noInternet": "Connection error!",
+  "retry": "Retry",
+  "stillNoInternet": "Still no internet connection",
   "trips_history": "Trips History",
   "skip": "Skip",
   "get_started": "Get Started",

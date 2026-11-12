@@ -7,18 +7,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:gap/gap.dart';
 import 'package:lavanderia_delivery/core/cache_manager/cache_manager.dart';
 import 'package:lavanderia_delivery/core/internet_connenction/internet_connection_state.dart';
 import 'package:lavanderia_delivery/core/notification/messaging_config.dart';
 import 'package:lavanderia_delivery/core/internet_connenction/internet_connenction_cubit.dart';
+import 'package:lavanderia_delivery/core/internet_connenction/no_internet_screen.dart';
 import 'package:lavanderia_delivery/core/router/app_router.dart';
 import 'package:lavanderia_delivery/core/service_locator/service_locator.dart';
-import 'package:lavanderia_delivery/core/style/assets.dart';
-import 'package:lavanderia_delivery/core/theme/text_styles.dart';
 import 'package:lavanderia_delivery/core/theme/theme.dart';
 import 'package:lavanderia_delivery/firebase_options.dart';
-import 'package:lottie/lottie.dart';
 import 'dart:ui' as ui;
 
 
@@ -104,29 +101,7 @@ class MyApp extends StatelessWidget {
                     if (offline) {
                       return MediaQuery(
                         data: media,
-                        child: Scaffold(
-                          body: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Center(
-                                child: Lottie.asset(
-                                  Assets.assetsIconsLottieJson,
-                                  height: 200.h,
-                                ),
-                              ),
-                              Gap(20.h),
-                              Center(
-                                child: Text(
-                                  "noInternet".tr(),
-                                  style: TextStyles.darkBold16.copyWith(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        child: const NoInternetScreen(),
                       );
                     }
 
