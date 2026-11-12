@@ -89,6 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             model: [
                               profile.vehicleMake,
                               profile.vehicleModel,
+                              ?profile.vehicleTrim,
                               if (profile.vehicleYear > 0)
                                 '${profile.vehicleYear}',
                             ].join(' '),

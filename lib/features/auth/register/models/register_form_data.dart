@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
+import 'package:lavanderia_delivery/features/auth/register/models/car_catalog_item.dart';
 import 'package:lavanderia_delivery/features/auth/register/models/city_model.dart';
 import 'package:lavanderia_delivery/features/auth/register/models/driver_register_request.dart';
 
@@ -70,8 +71,9 @@ class RegisterFormData {
 
   // الخطوة 4: بيانات المركبة
   VehicleType vehicleType = VehicleType.car;
-  final vehicleBrandController = TextEditingController();
-  final vehicleModelController = TextEditingController();
+
+  /// الهيكل ← النوع ← الموديل ← الفئة من كتالوج api/auth/car-*
+  CarSelection car = const CarSelection();
   final manufactureYearController = TextEditingController();
   VehicleColor? vehicleColor;
 
@@ -102,8 +104,10 @@ class RegisterFormData {
     licenseFrontImage: licenseFrontImage!,
     licenseBackImage: licenseBackImage!,
     vehicleType: vehicleType.name,
-    vehicleMake: vehicleBrandController.text.trim(),
-    vehicleModel: vehicleModelController.text.trim(),
+    carBodyTypeId: car.bodyType?.id,
+    carMakeId: car.make!.id,
+    carModelId: car.model!.id,
+    carTrimId: car.trim?.id,
     vehicleYear: int.parse(manufactureYearController.text.trim()),
     vehicleColor: vehicleColorValue,
     plateNumber: plateNumberController.text.trim(),
@@ -120,8 +124,6 @@ class RegisterFormData {
       addressController,
       licenseIssueDateController,
       licenseExpiryDateController,
-      vehicleBrandController,
-      vehicleModelController,
       manufactureYearController,
       vehicleColorController,
       plateNumberController,

@@ -20,8 +20,12 @@ class DriverRegisterRequest extends Equatable {
   final File licenseFrontImage;
   final File licenseBackImage;
   final String vehicleType;
-  final String vehicleMake;
-  final String vehicleModel;
+
+  /// السيرفر بيملا vehicleMake و vehicleModel بنفسه من الكتالوج
+  final int? carBodyTypeId;
+  final int carMakeId;
+  final int carModelId;
+  final int? carTrimId;
   final int vehicleYear;
   final String vehicleColor;
   final String plateNumber;
@@ -43,8 +47,10 @@ class DriverRegisterRequest extends Equatable {
     required this.licenseFrontImage,
     required this.licenseBackImage,
     required this.vehicleType,
-    required this.vehicleMake,
-    required this.vehicleModel,
+    this.carBodyTypeId,
+    required this.carMakeId,
+    required this.carModelId,
+    this.carTrimId,
     required this.vehicleYear,
     required this.vehicleColor,
     required this.plateNumber,
@@ -72,8 +78,10 @@ class DriverRegisterRequest extends Equatable {
     'LicenseFrontImage': licenseFrontImage,
     'LicenseBackImage': licenseBackImage,
     'VehicleType': vehicleType,
-    'VehicleMake': vehicleMake,
-    'VehicleModel': vehicleModel,
+    'CarBodyTypeId': ?carBodyTypeId,
+    'CarMakeId': carMakeId,
+    'CarModelId': carModelId,
+    'CarTrimId': ?carTrimId,
     'VehicleYear': vehicleYear,
     'VehicleColor': vehicleColor,
     'PlateNumber': plateNumber,
@@ -97,8 +105,10 @@ class DriverRegisterRequest extends Equatable {
     licenseFrontImage.path,
     licenseBackImage.path,
     vehicleType,
-    vehicleMake,
-    vehicleModel,
+    carBodyTypeId,
+    carMakeId,
+    carModelId,
+    carTrimId,
     vehicleYear,
     vehicleColor,
     plateNumber,

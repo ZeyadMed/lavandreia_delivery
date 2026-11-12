@@ -10,6 +10,22 @@ abstract interface class Endpoints {
   /// المدن اللي بتتعرض في الدروب داون بتاعة التسجيل،
   /// بترجع list فيها { id, name } والـ id هو اللي بيتبعت في cityId
   static const String cities = 'api/auth/cities';
+
+  /// كتالوج العربيات (مفتوح): الهيكل ← النوع ← الموديل ← الفئة
+  /// GET [{ id, name, imageUrl?, displayOrder }] مترتبة جاهزة
+  static const String carBodyTypes = 'api/auth/car-body-types';
+
+  /// GET [{ id, name, logoUrl? }] وبتاخد search
+  static const String carMakes = 'api/auth/car-makes';
+
+  /// GET [{ id, carMakeId, name }] وبتاخد search
+  static String carModels(int makeId) => 'api/auth/car-makes/$makeId/models';
+
+  /// GET [{ id, carModelId, name }] ممكن تبقى فاضية، ساعتها حقل الفئة بيستخبى
+  static String carTrims(int modelId) => 'api/auth/car-models/$modelId/trims';
+
+  /// بيجمع اند بوينتس الكتالوج كلها عشان isPublicAuth
+  static const String _carCatalogPrefix = 'api/auth/car-';
   static const String verifyOtp = '/api/auth/driver/verify-phone';
   static const String login = '/api/auth/driver/login';
 
@@ -111,6 +127,7 @@ abstract interface class Endpoints {
         path.contains(verifyPhone) ||
         path.contains(register) ||
         path.contains(cities) ||
+        path.contains(_carCatalogPrefix) ||
         path.contains(forgotPassword) ||
         path.contains(resetPassword);
   }

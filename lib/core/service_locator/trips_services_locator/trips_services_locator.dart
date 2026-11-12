@@ -1,6 +1,7 @@
 import 'package:get_it/get_it.dart';
 import 'package:lavanderia_delivery/core/realtime/driver_location_reporter.dart';
 import 'package:lavanderia_delivery/features/home/presentation/logic/home_cubit.dart';
+import 'package:lavanderia_delivery/features/trips/data/trip_completion_notifier.dart';
 import 'package:lavanderia_delivery/features/trips/data/trips_data_source.dart';
 import 'package:lavanderia_delivery/features/trips/presentation/logic/active_trip_cubit.dart';
 import 'package:lavanderia_delivery/features/trips/presentation/logic/available_trips_cubit.dart';
@@ -20,14 +21,18 @@ class TripsServicesLocator {
     getIt.registerLazySingleton<DriverLocationReporter>(
       () => DriverLocationReporter(getIt()),
     );
+    // singleton عشان شاشة الرحلة والهوم يتكلموا على نفس الـ stream
+    getIt.registerLazySingleton<TripCompletionNotifier>(
+      TripCompletionNotifier.new,
+    );
     getIt.registerFactory<HomeCubit>(
-      () => HomeCubit(getIt(), getIt(), getIt(), getIt()),
+      () => HomeCubit(getIt(), getIt(), getIt(), getIt(), getIt(), getIt()),
     );
     getIt.registerFactory<AvailableTripsCubit>(
       () => AvailableTripsCubit(getIt(), getIt(), getIt()),
     );
     getIt.registerFactory<ActiveTripCubit>(
-      () => ActiveTripCubit(getIt(), getIt()),
+      () => ActiveTripCubit(getIt(), getIt(), getIt()),
     );
     getIt.registerFactory<MyTripsCubit>(() => MyTripsCubit(getIt()));
     getIt.registerFactory<MyRequestsCubit>(

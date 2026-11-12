@@ -9,7 +9,9 @@ import 'package:lavanderia_delivery/core/style/app_colors.dart';
 import 'package:lavanderia_delivery/core/theme/text_styles.dart';
 import 'package:lavanderia_delivery/core/widget/custom_phone_field.dart';
 import 'package:lavanderia_delivery/features/auth/register/models/register_form_data.dart';
+import 'package:lavanderia_delivery/features/auth/register/presentation/view/widget/car_catalog_selector.dart';
 import 'package:lavanderia_delivery/features/auth/register/presentation/view/widget/register_form_widgets.dart';
+import 'package:lavanderia_delivery/core/extensions/string_extension.dart';
 
 /// الخطوة 1: المعلومات الشخصية
 class PersonalInfoStep extends StatefulWidget {
@@ -258,15 +260,9 @@ class _VehicleStepState extends State<VehicleStep> {
           labelOf: (type) => type.labelKey,
           onSelected: (type) => setState(() => data.vehicleType = type),
         ),
-        RegisterTextField(
-          label: 'vehicle_brand',
-          controller: data.vehicleBrandController,
-          validator: Validators.validateEmpty,
-        ),
-        RegisterTextField(
-          label: 'vehicle_model',
-          controller: data.vehicleModelController,
-          validator: Validators.validateEmpty,
+        CarCatalogSelector(
+          value: data.car,
+          onChanged: (car) => setState(() => data.car = car),
         ),
         RegisterTextField(
           label: 'manufacture_year',
@@ -310,7 +306,7 @@ class ReviewStep extends StatelessWidget {
           rows: [
             MapEntry('full_name', data.nameController.text),
             // علامات LTR عشان الرقم يتقري من الشمال (+218...) جوه الواجهة العربي
-            MapEntry('phone_number', '\u2066${data.completePhone}\u2069'),
+            MapEntry('phone_number', data.completePhone.forceLtr),
           ],
         ),
         ReviewSectionCard(
@@ -331,8 +327,12 @@ class ReviewStep extends StatelessWidget {
           title: 'register_vehicle_info',
           rows: [
             MapEntry('vehicle_type', data.vehicleType.labelKey.tr()),
-            MapEntry('vehicle_brand', data.vehicleBrandController.text),
-            MapEntry('vehicle_model', data.vehicleModelController.text),
+            if (data.car.bodyType != null)
+              MapEntry('car_body_type', data.car.bodyType!.name),
+            MapEntry('car_make', data.car.make?.name ?? ''),
+            MapEntry('car_model', data.car.model?.name ?? ''),
+            if (data.car.trim != null)
+              MapEntry('car_trim', data.car.trim!.name),
             MapEntry(
               'vehicle_color',
               data.vehicleColor == VehicleColor.other

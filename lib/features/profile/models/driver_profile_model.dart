@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:lavanderia_delivery/features/auth/register/models/car_catalog_item.dart';
 import 'package:lavanderia_delivery/features/auth/register/models/register_form_data.dart';
 
 /// بيانات المندوب اللي راجعة من GET api/driver/profile
@@ -17,6 +18,15 @@ class DriverProfileModel extends Equatable {
   final String vehicleType;
   final String vehicleMake;
   final String vehicleModel;
+
+  /// الفئة وحقول car* ممكن تبقى null للحسابات القديمة قبل الكتالوج
+  final String? vehicleTrim;
+  final int? carBodyTypeId;
+  final String? carBodyTypeName;
+  final String? carBodyTypeImageUrl;
+  final int? carMakeId;
+  final int? carModelId;
+  final int? carTrimId;
   final int vehicleYear;
   final String vehicleColor;
   final String plateNumber;
@@ -41,6 +51,13 @@ class DriverProfileModel extends Equatable {
     required this.vehicleType,
     required this.vehicleMake,
     required this.vehicleModel,
+    this.vehicleTrim,
+    this.carBodyTypeId,
+    this.carBodyTypeName,
+    this.carBodyTypeImageUrl,
+    this.carMakeId,
+    this.carModelId,
+    this.carTrimId,
     required this.vehicleYear,
     required this.vehicleColor,
     required this.plateNumber,
@@ -67,6 +84,13 @@ class DriverProfileModel extends Equatable {
       vehicleType: json['vehicleType'] ?? '',
       vehicleMake: json['vehicleMake'] ?? '',
       vehicleModel: json['vehicleModel'] ?? '',
+      vehicleTrim: json['vehicleTrim'],
+      carBodyTypeId: json['carBodyTypeId'],
+      carBodyTypeName: json['carBodyTypeName'],
+      carBodyTypeImageUrl: json['carBodyTypeImageUrl'],
+      carMakeId: json['carMakeId'],
+      carModelId: json['carModelId'],
+      carTrimId: json['carTrimId'],
       vehicleYear: json['vehicleYear'] ?? 0,
       vehicleColor: json['vehicleColor'] ?? '',
       plateNumber: json['plateNumber'] ?? '',
@@ -75,6 +99,27 @@ class DriverProfileModel extends Equatable {
       isActive: json['isActive'] ?? false,
       isAvailable: json['isAvailable'] ?? false,
       createdAt: DateTime.tryParse(json['createdAt'] ?? ''),
+    );
+  }
+
+  /// الاختيار الحالي من الكتالوج عشان يتملا في شاشة التعديل.
+  /// الموديل والفئة من غير النوع مالهمش معنى فبيتشالوا
+  CarSelection get carSelection {
+    final make = CarCatalogItem.fromProfile(carMakeId, vehicleMake);
+    final model = make == null
+        ? null
+        : CarCatalogItem.fromProfile(carModelId, vehicleModel);
+    return CarSelection(
+      bodyType: CarCatalogItem.fromProfile(
+        carBodyTypeId,
+        carBodyTypeName,
+        carBodyTypeImageUrl,
+      ),
+      make: make,
+      model: model,
+      trim: model == null
+          ? null
+          : CarCatalogItem.fromProfile(carTrimId, vehicleTrim),
     );
   }
 
@@ -108,6 +153,13 @@ class DriverProfileModel extends Equatable {
     vehicleType,
     vehicleMake,
     vehicleModel,
+    vehicleTrim,
+    carBodyTypeId,
+    carBodyTypeName,
+    carBodyTypeImageUrl,
+    carMakeId,
+    carModelId,
+    carTrimId,
     vehicleYear,
     vehicleColor,
     plateNumber,

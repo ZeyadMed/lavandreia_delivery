@@ -401,5 +401,15 @@
   "allow": "سماح",
   "delete_account": "حذف الحساب",
   "delete_account_confirm": "هل أنت متأكد أنك تريد حذف حسابك؟ سيتم حذف جميع بياناتك ولا يمكن التراجع عن هذا الإجراء.",
-  "account_deleted": "تم حذف الحساب بنجاح"
+  "account_deleted": "تم حذف الحساب بنجاح",
+  "car_body_type": "نوع الهيكل",
+  "car_make": "النوع",
+  "car_model": "موديل",
+  "car_trim": "الفئة",
+  "choose": "اختر",
+  "confirm_selection": "تأكيد",
+  "no_results": "لا توجد نتائج",
+  "car_make_required": "اختر نوع السيارة",
+  "car_model_required": "اختر موديل السيارة",
+  "catalog_search": "ابحث"
 }

@@ -7,11 +7,14 @@ import 'package:lavanderia_delivery/core/realtime/realtime_event.dart';
 import 'package:lavanderia_delivery/core/realtime/realtime_service.dart';
 import 'package:lavanderia_delivery/features/profile/data/profile_data_source.dart';
 import 'package:lavanderia_delivery/core/http/either.dart';
+import 'package:lavanderia_delivery/features/trips/data/trip_completion_notifier.dart';
 import 'package:lavanderia_delivery/features/trips/data/trips_data_source.dart';
 import 'package:lavanderia_delivery/features/trips/models/accrediting_laundry_model.dart';
 import 'package:lavanderia_delivery/features/trips/models/delivery_trip_model.dart';
 import 'package:lavanderia_delivery/features/trips/models/driver_accreditation.dart';
 import 'package:lavanderia_delivery/features/trips/models/trip_request_model.dart';
+import 'package:lavanderia_delivery/features/wallet/data/wallet_data_source.dart';
+import 'package:lavanderia_delivery/features/wallet/models/wallet_transaction_model.dart';
 
 /// رد المغسلة على طلب رحلة، بيتعرض مرة واحدة لما resolutionTick يتغير
 enum TripResolution { none, approved, rejected }
@@ -96,7 +99,9 @@ class HomeCubit extends Cubit<HomeState> {
   final TripsDataSource _tripsDataSource;
   final ProfileDataSource _profileDataSource;
   final DriverLocationReporter _locationReporter;
+  final WalletDataSource _walletDataSource;
   StreamSubscription<RealtimeEvent>? _subscription;
+  StreamSubscription<int>? _completionSubscription;
 
   /// أحدث رحلة في رحلاتنا، مصدر "معتمد من" لو مفيش رحلة حالية
   DeliveryTripModel? _latestTrip;
@@ -106,8 +111,14 @@ class HomeCubit extends Cubit<HomeState> {
     this._profileDataSource,
     RealtimeService realtime,
     this._locationReporter,
+    this._walletDataSource,
+    TripCompletionNotifier completionNotifier,
   ) : super(const HomeState()) {
     _subscription = realtime.events.listen(_onRealtimeEvent);
+    // رحلة خلصت من أي شاشة، فلما المندوب يرجع الهوم يلاقي أرباحه محدّثة
+    _completionSubscription = completionNotifier.completedTrips.listen(
+      (_) => loadMyTrips(),
+    );
   }
 
   Future<void> load() async {
@@ -127,11 +138,15 @@ class HomeCubit extends Cubit<HomeState> {
   void _syncLocationReporter(bool isAvailable) =>
       isAvailable ? _locationReporter.start() : _locationReporter.stop();
 
-  /// الرحلة الحالية وإحصائيات النهارده، ومنهم المغاسل اللي معتمدانا
+  /// الرحلة الحالية وإحصائيات النهارده، وآخر رحلة عشان المغاسل اللي معتمدانا
   Future<void> loadMyTrips() async {
-    final loaded = await Future.wait([_loadCurrentTrip(), _loadTodayStats()]);
+    final loaded = await Future.wait([
+      _loadCurrentTrip(),
+      _loadLatestTrip(),
+      _loadTodayStats(),
+    ]);
     if (isClosed) return;
-    await _loadAccreditation(tripsLoaded: loaded.every((ok) => ok));
+    await _loadAccreditation(tripsLoaded: loaded[0] && loaded[1]);
   }
 
   /// بترجع false لو الريكوست فشل
@@ -168,28 +183,56 @@ class HomeCubit extends Cubit<HomeState> {
     );
   }
 
-  /// من رحلاتنا، لحد ما يبقى فيه endpoint للإحصائيات. بترجع false لو الريكوست فشل
-  Future<bool> _loadTodayStats() async {
-    final result = await _tripsDataSource.getMyTrips(
-      pageIndex: 1,
-      pageSize: 30,
-    );
+  /// أحدث رحلة في رحلاتنا لـ "معتمد من". بترجع false لو الريكوست فشل
+  Future<bool> _loadLatestTrip() async {
+    final result = await _tripsDataSource.getMyTrips(pageIndex: 1, pageSize: 1);
     if (isClosed) return false;
     return result.fold((_) => false, (page) {
       _latestTrip = page.items.firstOrNull;
-      final today = page.items.where(
-        (trip) =>
-            trip.stage == TripStage.completed &&
-            _isToday(trip.completedAt ?? trip.createdAt),
-      );
-      emit(
-        state.copyWith(
-          todayTrips: today.length,
-          todayEarnings: today.fold<num>(0, (sum, trip) => sum + trip.fee),
-        ),
-      );
       return true;
     });
+  }
+
+  /// أرباح ورحلات النهارده من GET api/driver/wallet زي شاشة الأرباح.
+  /// لو المحفظة مارجعتش todayEarnings / todayTrips بنحسبهم من حركات
+  /// النهارده اللي داخلة المحفظة. لو فشل بنسيب الأرقام القديمة
+  Future<bool> _loadTodayStats() async {
+    final result = await _walletDataSource.getWallet();
+    if (isClosed || result.isError) return false;
+    final wallet = result.getOrThrow();
+
+    var earnings = wallet.todayEarnings;
+    var trips = wallet.todayTrips;
+    if (earnings == null || trips == null) {
+      final credits = await _loadTodayCredits();
+      if (isClosed) return false;
+      if (credits != null) {
+        earnings ??= credits.fold<num>(0, (sum, t) => sum + t.amount);
+        trips ??= credits.map((t) => t.tripId).whereType<int>().toSet().length;
+      }
+    }
+
+    emit(
+      state.copyWith(
+        todayEarnings: earnings ?? state.todayEarnings,
+        todayTrips: trips ?? state.todayTrips,
+      ),
+    );
+    return true;
+  }
+
+  /// الحركات أحدث الأول، فأول صفحة كفاية ليوم واحد. null لو الريكوست فشل
+  Future<List<WalletTransactionModel>?> _loadTodayCredits() async {
+    final result = await _walletDataSource.getTransactions(
+      pageIndex: 1,
+      pageSize: 50,
+    );
+    if (isClosed || result.isError) return null;
+    return result
+        .getOrThrow()
+        .items
+        .where((t) => t.isCredit && _isToday(t.createdAt))
+        .toList();
   }
 
   /// بيتغير في الـ UI على طول، ولو الريكوست فشل بيرجع زي ما كان
@@ -278,6 +321,7 @@ class HomeCubit extends Cubit<HomeState> {
   @override
   Future<void> close() {
     _subscription?.cancel();
+    _completionSubscription?.cancel();
     return super.close();
   }
 }

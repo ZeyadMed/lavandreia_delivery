@@ -1,4 +1,5 @@
 import 'package:get_it/get_it.dart';
+import 'package:lavanderia_delivery/features/auth/register/data/car_catalog_data_source.dart';
 import 'package:lavanderia_delivery/features/auth/register/data/city_data_source.dart';
 import 'package:lavanderia_delivery/features/auth/register/data/register_data_source.dart';
 import 'package:lavanderia_delivery/features/auth/register/presentation/logic/city_cubit.dart';
@@ -15,5 +16,9 @@ class RegisterServicesLocator {
       () => CityDataSourceImpl(getIt()),
     );
     getIt.registerFactory<CityCubit>(() => CityCubit(getIt()));
+
+    getIt.registerLazySingleton<CarCatalogDataSource>(
+      () => CarCatalogDataSourceImpl(getIt()),
+    );
   }
 }

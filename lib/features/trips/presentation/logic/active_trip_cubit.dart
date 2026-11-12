@@ -10,6 +10,7 @@ import 'package:lavanderia_delivery/core/http/either.dart';
 import 'package:lavanderia_delivery/core/http/failure.dart';
 import 'package:lavanderia_delivery/core/realtime/realtime_event.dart';
 import 'package:lavanderia_delivery/core/realtime/realtime_service.dart';
+import 'package:lavanderia_delivery/features/trips/data/trip_completion_notifier.dart';
 import 'package:lavanderia_delivery/features/trips/data/trips_data_source.dart';
 import 'package:lavanderia_delivery/features/trips/models/delivery_trip_model.dart';
 import 'package:lavanderia_delivery/features/trips/models/trip_otp_model.dart';
@@ -57,13 +58,14 @@ class ActiveTripState extends Equatable {
 class ActiveTripCubit extends Cubit<ActiveTripState> {
   final TripsDataSource _dataSource;
   final RealtimeService _realtime;
+  final TripCompletionNotifier _completionNotifier;
   StreamSubscription<RealtimeEvent>? _subscription;
   Timer? _pollTimer;
 
   static const int maxPhotos = 10;
   static const Duration _pollInterval = Duration(seconds: 30);
 
-  ActiveTripCubit(this._dataSource, this._realtime)
+  ActiveTripCubit(this._dataSource, this._realtime, this._completionNotifier)
     : super(const ActiveTripState()) {
     _subscription = _realtime.events.listen(_onRealtimeEvent);
   }
@@ -138,7 +140,15 @@ class ActiveTripCubit extends Cubit<ActiveTripState> {
   }
 
   void _emitTrip(DeliveryTripModel trip) {
+    final previous = state.trip;
     emit(state.copyWith(status: Status.success, trip: trip));
+    // خلصت قدامنا دلوقتي (deliver أو تأكيد المغسلة)، مش رحلة مفتوحة من
+    // السجل وهي خلصانة أصلاً، فالهوم تحدّث أرباح ورحلات النهارده
+    if (trip.stage == TripStage.completed &&
+        previous?.id == trip.id &&
+        previous?.stage != TripStage.completed) {
+      _completionNotifier.notify(trip.id);
+    }
     _updatePolling(trip);
     // الرحلة انتهت بأي شكل، فالـ OTP المحفوظ مالوش لازمة
     if (const {

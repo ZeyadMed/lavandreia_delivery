@@ -13,9 +13,11 @@ import 'package:lavanderia_delivery/core/helpers/validators.dart';
 import 'package:lavanderia_delivery/core/service_locator/service_locator.dart';
 import 'package:lavanderia_delivery/core/style/app_colors.dart';
 import 'package:lavanderia_delivery/core/theme/text_styles.dart';
+import 'package:lavanderia_delivery/features/auth/register/models/car_catalog_item.dart';
 import 'package:lavanderia_delivery/features/auth/register/models/city_model.dart';
 import 'package:lavanderia_delivery/features/auth/register/models/register_form_data.dart';
 import 'package:lavanderia_delivery/features/auth/register/presentation/logic/city_cubit.dart';
+import 'package:lavanderia_delivery/features/auth/register/presentation/view/widget/car_catalog_selector.dart';
 import 'package:lavanderia_delivery/features/auth/register/presentation/view/widget/register_form_widgets.dart';
 import 'package:lavanderia_delivery/features/home/presentation/view/widget/home_colors.dart';
 import 'package:lavanderia_delivery/features/profile/models/driver_profile_model.dart';
@@ -58,12 +60,9 @@ class _EditProfileViewState extends State<_EditProfileView> {
   late final _addressController = TextEditingController(
     text: widget.profile.address,
   );
-  late final _makeController = TextEditingController(
-    text: widget.profile.vehicleMake,
-  );
-  late final _modelController = TextEditingController(
-    text: widget.profile.vehicleModel,
-  );
+
+  /// الحسابات القديمة مالهاش ids من الكتالوج، فلازم تختار النوع والموديل من جديد
+  late CarSelection _car = widget.profile.carSelection;
   late final _yearController = TextEditingController(
     text: widget.profile.vehicleYear > 0 ? '${widget.profile.vehicleYear}' : '',
   );
@@ -90,8 +89,6 @@ class _EditProfileViewState extends State<_EditProfileView> {
     for (final controller in [
       _nameController,
       _addressController,
-      _makeController,
-      _modelController,
       _yearController,
       _plateController,
       _otherColorController,
@@ -133,8 +130,10 @@ class _EditProfileViewState extends State<_EditProfileView> {
         // الباك بيرجع النوع بحرف كابيتال (Car) فبنبعته بنفس الشكل
         vehicleType:
             _vehicleType.name[0].toUpperCase() + _vehicleType.name.substring(1),
-        vehicleMake: _makeController.text.trim(),
-        vehicleModel: _modelController.text.trim(),
+        carBodyTypeId: _car.bodyType?.id,
+        carMakeId: _car.make!.id,
+        carModelId: _car.model!.id,
+        carTrimId: _car.trim?.id,
         vehicleYear: int.parse(_yearController.text.trim()),
         vehicleColor: color,
         plateNumber: _plateController.text.trim(),
@@ -174,82 +173,79 @@ class _EditProfileViewState extends State<_EditProfileView> {
                   children: [
                     _ProfileImage(imageUrl: widget.profile.profileImageUrl),
                     Gap(24.h),
-                    Container(
-                      padding: EdgeInsets.all(20.r),
-                      decoration: BoxDecoration(
-                        color: AppColors.whiteColor,
-                        borderRadius: BorderRadius.circular(22.r),
-                      ),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _ProfileTextField(
-                              label: 'full_name',
-                              controller: _nameController,
-                              validator: Validators.validateEmpty,
-                            ),
-                            CityDropdown(
-                              value: _city,
-                              onChanged: (city) => setState(() => _city = city),
-                            ),
-                            Gap(16.h),
-                            _ProfileTextField(
-                              label: 'address',
-                              controller: _addressController,
-                              validator: Validators.validateEmpty,
-                            ),
-                            const RegisterFieldLabel('vehicle_type'),
-                            RegisterOptionSelector<VehicleType>(
-                              options: VehicleType.values,
-                              selected: _vehicleType,
-                              labelOf: (type) => type.labelKey,
-                              onSelected: (type) =>
-                                  setState(() => _vehicleType = type),
-                            ),
-                            Gap(16.h),
-                            _ProfileTextField(
-                              label: 'vehicle_brand',
-                              controller: _makeController,
-                              validator: Validators.validateEmpty,
-                            ),
-                            _ProfileTextField(
-                              label: 'vehicle_model',
-                              controller: _modelController,
-                              validator: Validators.validateEmpty,
-                            ),
-                            _ProfileTextField(
-                              label: 'manufacture_year',
-                              controller: _yearController,
-                              keyboardType: TextInputType.number,
-                              validator: _yearValidator,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(4),
-                              ],
-                            ),
-                            VehicleColorSelector(
-                              selected: _vehicleColor,
-                              otherController: _otherColorController,
-                              onSelected: (color) =>
-                                  setState(() => _vehicleColor = color),
-                            ),
-                            Gap(16.h),
-                            _ProfileTextField(
-                              label: 'plate_number',
-                              controller: _plateController,
-                              validator: Validators.validateEmpty,
-                            ),
-                            Gap(8.h),
-                            BlocBuilder<UpdateProfileCubit, BaseState<void>>(
-                              builder: (context, state) => _SaveButton(
-                                isLoading: state.isLoading,
-                                onTap: () => _save(context),
+                    Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _FormCard(
+                            children: [
+                              _ProfileTextField(
+                                label: 'full_name',
+                                controller: _nameController,
+                                validator: Validators.validateEmpty,
                               ),
+                              CityDropdown(
+                                value: _city,
+                                onChanged: (city) =>
+                                    setState(() => _city = city),
+                              ),
+                              Gap(16.h),
+                              _ProfileTextField(
+                                label: 'address',
+                                controller: _addressController,
+                                validator: Validators.validateEmpty,
+                              ),
+                              const RegisterFieldLabel('vehicle_type'),
+                              RegisterOptionSelector<VehicleType>(
+                                options: VehicleType.values,
+                                selected: _vehicleType,
+                                labelOf: (type) => type.labelKey,
+                                onSelected: (type) =>
+                                    setState(() => _vehicleType = type),
+                              ),
+                            ],
+                          ),
+                          // كروت الهيكل والنوع/الموديل/الفئة بيضا لوحدها
+                          CarCatalogSelector(
+                            value: _car,
+                            onChanged: (car) => setState(() => _car = car),
+                          ),
+                          Gap(14.h),
+                          _FormCard(
+                            children: [
+                              _ProfileTextField(
+                                label: 'manufacture_year',
+                                controller: _yearController,
+                                keyboardType: TextInputType.number,
+                                validator: _yearValidator,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(4),
+                                ],
+                              ),
+                              VehicleColorSelector(
+                                selected: _vehicleColor,
+                                otherController: _otherColorController,
+                                onSelected: (color) =>
+                                    setState(() => _vehicleColor = color),
+                              ),
+                              Gap(16.h),
+                              _ProfileTextField(
+                                label: 'plate_number',
+                                controller: _plateController,
+                                validator: Validators.validateEmpty,
+                              ),
+                            ],
+                          ),
+                          Gap(20.h),
+                          BlocBuilder<UpdateProfileCubit, BaseState<void>>(
+                            builder: (context, state) => _SaveButton(
+                              isLoading: state.isLoading,
+                              onTap: () => _save(context),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -258,6 +254,28 @@ class _EditProfileViewState extends State<_EditProfileView> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// كارت أبيض بنفس شكل كروت اختيار العربية
+class _FormCard extends StatelessWidget {
+  final List<Widget> children;
+
+  const _FormCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 16.h),
+      decoration: BoxDecoration(
+        color: AppColors.whiteColor,
+        borderRadius: BorderRadius.circular(16.r),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
       ),
     );
   }

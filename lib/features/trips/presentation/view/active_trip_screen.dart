@@ -651,9 +651,16 @@ class _PhotosPicker extends StatelessWidget {
     onAdd(files);
   }
 
+  /// 4 مربعات شكلاً بس، صورة واحدة كفاية عشان يأكد
+  static const int _minSlots = 4;
+
   @override
   Widget build(BuildContext context) {
     final canAdd = enabled && photos.length < ActiveTripCubit.maxPhotos;
+    // المربعات الفاضية بتكمّل لـ 4، ولو عدّاهم بيفضل مربع إضافة واحد لحد الحد الأقصى
+    final emptySlots = photos.length < _minSlots
+        ? _minSlots - photos.length
+        : (canAdd ? 1 : 0);
     return HomeCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -672,32 +679,24 @@ class _PhotosPicker extends StatelessWidget {
             ),
           ),
           Gap(12.h),
-          Wrap(
-            spacing: 10.w,
-            runSpacing: 10.h,
+          GridView.count(
+            crossAxisCount: _minSlots,
+            mainAxisSpacing: 10.h,
+            crossAxisSpacing: 10.w,
+            shrinkWrap: true,
+            padding: EdgeInsets.zero,
+            physics: const NeverScrollableScrollPhysics(),
             children: [
               for (int i = 0; i < photos.length; i++)
                 _PhotoThumb(
                   file: photos[i],
                   onRemove: enabled ? () => onRemove(i) : null,
                 ),
-              if (canAdd)
-                InkWell(
-                  borderRadius: BorderRadius.circular(12.r),
-                  onTap: () => _pick(context),
-                  child: Container(
-                    width: 72.r,
-                    height: 72.r,
-                    decoration: BoxDecoration(
-                      color: HomeColors.lightBlue,
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                    child: Icon(
-                      Icons.add_a_photo_outlined,
-                      color: AppColors.primaryColor,
-                      size: 26.sp,
-                    ),
-                  ),
+              for (int i = 0; i < emptySlots; i++)
+                _EmptyPhotoSlot(
+                  onTap: canAdd ? () => _pick(context) : null,
+                  // أول مربع فاضي هو اللي باين إنه "الجاي"، الباقي أخف
+                  isNext: i == 0,
                 ),
             ],
           ),
@@ -716,16 +715,16 @@ class _PhotoThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(
-      clipBehavior: Clip.none,
+      fit: StackFit.expand,
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12.r),
-          child: Image.file(file, width: 72.r, height: 72.r, fit: BoxFit.cover),
+          child: Image.file(file, fit: BoxFit.cover),
         ),
         if (onRemove != null)
           PositionedDirectional(
-            top: -6,
-            end: -6,
+            top: 4,
+            end: 4,
             child: GestureDetector(
               onTap: onRemove,
               child: Container(
@@ -743,6 +742,35 @@ class _PhotoThumb extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// مربع فاضي لرفع صورة، [onTap] null لما الرفع مقفول
+class _EmptyPhotoSlot extends StatelessWidget {
+  final VoidCallback? onTap;
+  final bool isNext;
+
+  const _EmptyPhotoSlot({required this.onTap, required this.isNext});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12.r),
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: HomeColors.lightBlue,
+          borderRadius: BorderRadius.circular(12.r),
+        ),
+        child: Icon(
+          Icons.add_a_photo_outlined,
+          color: AppColors.primaryColor.withValues(
+            alpha: onTap != null && isNext ? 1 : 0.4,
+          ),
+          size: 26.sp,
+        ),
+      ),
     );
   }
 }
